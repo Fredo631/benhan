@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en-au">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Discover">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon.jpg">
+    <title>VicRoads Probationary Licence View</title>
+    <style>
+        :root{
+            --navy:#1F3350;
+            --navy-soft:#3C4E68;
+            --orange:#E8720C;
+            --line:#E7E7EA;
+            --bg:#FFFFFF;
+            --panel:#F6F6F7;
+            --text:#111827;
+            --muted:#6B7280;
+            --safe-top: env(safe-area-inset-top);
+            --safe-bottom: env(safe-area-inset-bottom);
+        }
+
+        *{
+            margin:0;
+            padding:0;
+            box-sizing:border-box;
+            -webkit-tap-highlight-color:transparent;
+            font-family:-apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+        }
+
+        html, body{
+            width:100%;
+            min-height:100%;
+            background:var(--bg);
+            color:var(--navy);
+            overflow-y:auto;
+            -webkit-overflow-scrolling:touch;
+        }
+
+        body{
+            padding-top:var(--safe-top);
+            padding-bottom:calc(16px + var(--safe-bottom));
+        }
+
+        button{font-family:inherit; border:none; background:none; cursor:pointer;}
+
+        .license-page{
+            min-height:100vh;
+            display:flex;
+            flex-direction:column;
+            background:var(--bg);
+        }
+
+        .topbar{
+            display:flex;
+            align-items:center;
+            justify-content:space-between;
+            padding:14px 18px 10px;
+            flex-shrink:0;
+        }
+
+        .icon-btn{
+            width:34px;
+            height:34px;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            color:var(--navy-soft);
+        }
+
+        .page-title{
+            font-size:22px;
+            font-weight:700;
+            color:var(--navy);
+            letter-spacing:-0.3px;
+        }
+
+        .menu-dot{
+            width:34px;
+            height:34px;
+            border-radius:50%;
+            background:var(--orange);
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            color:#fff;
+            font-size:18px;
+            font-weight:700;
+        }
+
+        .pull-refresh-indicator{
+            height:36px;
+            display:grid;
+            place-items:center;
+            color:var(--muted);
+            font-size:13px;
+            opacity:0;
+            transition:opacity .2s ease;
+        }
+
+        .pull-refresh-indicator.active{opacity:1;}
+
+        .last-refreshed-top{
+            text-align:center;
+            color:var(--muted);
+            font-size:12px;
+            margin:0 18px 8px;
+        }
+
+        .banner{
+            background:#E02020;
+            color:#fff;
+            padding:14px 20px;
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+        }
+
+        .banner-text h1{
+            font-size:18px;
+            font-weight:700;
+            letter-spacing:.3px;
+        }
+
+        .banner-text p{
+            font-size:14px;
+            opacity:.95;
+            margin-top:2px;
+        }
+
+        .vicroads-logo{
+            font-size:18px;
+            font-weight:700;
+        }
+
+        .licence-card-area{
+            background:url('green.jpg') center center / cover no-repeat;
+            padding:20px;
+            display:flex;
+            gap:16px;
+            align-items:flex-start;
+        }
+
+        .photo-box{
+            width:42%;
+            aspect-ratio:3 / 4;
+            border-radius:12px;
+            overflow:hidden;
+            margin-top:20px;
+            background:#fff;
+        }
+
+        .photo-box img,
+        .qr-box img{
+            width:100%;
+            height:100%;
+            object-fit:cover;
+            display:block;
+        }
+
+        .qr-container{
+            width:54%;
+            background:#fff;
+            border-radius:10px;
+            padding:12px;
+        }
+
+        .qr-label{
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            font-size:15px;
+            font-weight:600;
+            color:var(--text);
+            margin-bottom:10px;
+        }
+
+        .qr-box{
+            width:100%;
+            aspect-ratio:1 / 1;
+            border-radius:6px;
+            overflow:hidden;
+            background:#f3f4f6;
+        }
+
+        .qr-expiry{
+            text-align:center;
+            margin-top:10px;
+            font-size:13px;
+            color:var(--muted);
+        }
+
+        .tab-bar{
+            display:flex;
+            margin:20px 20px 0;
+            gap:4px;
+        }
+
+        .tab{
+            flex:1;
+            text-align:center;
+            padding:10px 0;
+            border-radius:22px;
+            font-size:14px;
+            font-weight:600;
+            cursor:pointer;
+        }
+
+        .tab.active{
+            background:#3A4454;
+            color:#fff;
+        }
+
+        .tab.inactive{
+            color:#6B7280;
+            background:#F3F4F6;
+        }
+
+        .details-container{
+            padding:24px 20px 40px;
+        }
+
+        .tab-content{display:none;}
+        .tab-content.active{display:block;}
+
+        .full-name{
+            font-size:28px;
+            font-weight:800;
+            color:#111827;
+            margin-bottom:22px;
+            letter-spacing:-0.4px;
+        }
+
+        .divider-line{
+            width:100%;
+            height:1px;
+            background:var(--line);
+            margin-bottom:22px;
+        }
+
+        .detail-grid{
+            display:grid;
+            grid-template-columns:1fr 1fr;
+            gap:20px 10px;
+            margin-bottom:22px;
+        }
+
+        .detail-label{
+            font-size:13px;
+            color:var(--muted);
+            margin-bottom:6px;
+        }
+
+        .detail-value{
+            font-size:17px;
+            font-weight:600;
+            color:#111;
+            line-height:1.35;
+        }
+
+        .p-plate-tag{
+            background:#E02020;
+            color:#fff;
+            padding:2px 6px;
+            border-radius:3px;
+            font-size:13px;
+            margin-left:6px;
+            vertical-align:middle;
+        }
+
+        .address-label{
+            font-size:13px;
+            color:var(--muted);
+            margin-top:10px;
+        }
+
+        .age-checkmark{
+            font-size:22px;
+            color:#009933;
+            margin-left:8px;
+        }
+
+        .signature-label{
+            font-size:13px;
+            color:var(--muted);
+            margin-top:22px;
+        }
+
+        .signature-box{
+            margin-top:8px;
+            background:#fff;
+            border:1px solid var(--line);
+            border-radius:8px;
+            padding:10px;
+            max-width:240px;
+        }
+
+        .signature-box img{
+            display:block;
+            width:100%;
+            height:auto;
+            object-fit:contain;
+        }
+    </style>
+</head>
+<body>
+
+<div class="license-page" id="licensePage">
+    <div class="topbar">
+        <button class="icon-btn" id="backBtn" aria-label="Back">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M15 18l-6-6 6-6"/>
+            </svg>
+        </button>
+        <h2 class="page-title">View details</h2>
+        <div class="menu-dot">⋯</div>
+    </div>
+
+    <div class="last-refreshed-top" id="lastRefreshedTop">Last refreshed --:--</div>
+    <div class="pull-refresh-indicator" id="pullIndicator">Pull down to refresh</div>
+
+    <div class="banner">
+        <div class="banner-text">
+            <h1>PROBATIONARY DRIVER LICENCE</h1>
+            <p>Victoria Australia</p>
+        </div>
+        <div class="vicroads-logo">vicroads</div>
+    </div>
+
+    <div class="licence-card-area">
+        <div class="photo-box">
+            <img src="license.jpg" alt="Licence Photo">
+        </div>
+        <div class="qr-container">
+            <div class="qr-label">
+                <span>Check licence</span>
+                <span>↗</span>
+            </div>
+            <div class="qr-box">
+                <img id="qrImage" src="qr1.jpg" alt="QR Code">
+            </div>
+            <div class="qr-expiry" id="qrExpiry">QR expires --:--</div>
+        </div>
+    </div>
+
+    <div class="tab-bar">
+        <div class="tab active" data-tab="licence">Licence</div>
+        <div class="tab inactive" data-tab="identity">Identity</div>
+        <div class="tab inactive" data-tab="age">Age</div>
+    </div>
+
+    <div class="details-container">
+        <div class="tab-content active" id="tab-licence">
+            <h3 class="full-name">BENJAMIN HAN</h3>
+            <div class="divider-line"></div>
+
+            <div class="detail-grid">
+                <div>
+                    <div class="detail-label">Licence number</div>
+                    <div class="detail-value">045814678</div>
+                </div>
+                <div>
+                    <div class="detail-label">Expiry</div>
+                    <div class="detail-value">19 OCT 2028</div>
+                </div>
+                <div>
+                    <div class="detail-label">Licence type</div>
+                    <div class="detail-value">Car <span class="p-plate-tag">P</span></div>
+                </div>
+                <div>
+                    <div class="detail-label">Date of birth</div>
+                    <div class="detail-value">26 APR 2007</div>
+                </div>
+            </div>
+
+            <div class="divider-line"></div>
+
+            <div class="detail-grid">
+                <div>
+                    <div class="detail-label">P1 end date</div>
+                    <div class="detail-value">23 Jan 2028</div>
+                </div>
+            </div>
+
+            <div class="divider-line"></div>
+
+            <div class="address-label">Address</div>
+            <div class="detail-value" style="margin-top:4px;">
+                10 LORNA STREET<br>
+                CRANBOURNE VIC 3977
+            </div>
+        </div>
+
+        <div class="tab-content" id="tab-identity">
+            <h3 class="full-name">BENJAMIN HAN</h3>
+            <div class="divider-line"></div>
+
+            <div class="address-label">Residential Address</div>
+            <div class="detail-value" style="margin-top:4px;">
+                10 Lorna Street<br>
+                Cranbourne VIC 3977
+            </div>
+
+            <div class="signature-label">Signature</div>
+            <div class="signature-box">
+                <img src="signature.jpg" alt="Signature">
+            </div>
+        </div>
+
+        <div class="tab-content" id="tab-age">
+            <h3 class="full-name">Age Verification</h3>
+            <div class="divider-line"></div>
+
+            <div class="detail-value">
+                Over 18 <span class="age-checkmark">✔</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const tabs = document.querySelectorAll(".tab");
+    const tabContents = document.querySelectorAll(".tab-content");
+
+    tabs.forEach(tab => {
+        tab.addEventListener("click", () => {
+            tabs.forEach(t => {
+                t.classList.remove("active");
+                t.classList.add("inactive");
+            });
+            tab.classList.add("active");
+            tab.classList.remove("inactive");
+            tabContents.forEach(content => content.classList.remove("active"));
+            document.getElementById(`tab-${tab.dataset.tab}`).classList.add("active");
+        });
+    });
+
+    document.getElementById("backBtn").addEventListener("click", () => {
+        window.location.href = "index.html#wallet";
+    });
+
+    const qrExpiryEl = document.getElementById("qrExpiry");
+    const lastRefreshedTopEl = document.getElementById("lastRefreshedTop");
+
+    function formatTime(date) {
+        let hours = date.getHours();
+        const minutes = String(date.getMinutes()).padStart(2, "0");
+        const period = hours >= 12 ? "pm" : "am";
+        hours = hours % 12 || 12;
+        return `${hours}:${minutes}${period}`;
+    }
+
+    function updateTimes() {
+        const now = new Date();
+        const expiry = new Date(now.getTime() + 5 * 60 * 1000);
+        const lastRefreshedText = `Last refreshed ${formatTime(now)}`;
+        qrExpiryEl.textContent = `QR expires ${formatTime(expiry)}`;
+        lastRefreshedTopEl.textContent = lastRefreshedText;
+    }
+
+    updateTimes();
+    setInterval(updateTimes, 1000);
+
+    const qrSources = ["qr1.jpg", "qr2.jpg", "qr3.jpg"];
+    let currentQrIndex = 0;
+    let currentQrSrc = qrSources[currentQrIndex];
+    let isRefreshing = false;
+    const cardEl = document.getElementById("licensePage");
+    const qrImgEl = document.getElementById("qrImage");
+    const pullIndicator = document.getElementById("pullIndicator");
+
+    function toggleQrImage() {
+        currentQrIndex = (currentQrIndex + 1) % qrSources.length;
+        currentQrSrc = qrSources[currentQrIndex];
+        qrImgEl.src = currentQrSrc;
+        updateTimes();
+    }
+
+    function performRefresh() {
+        if (isRefreshing) return;
+        isRefreshing = true;
+        pullIndicator.classList.add("active");
+        toggleQrImage();
+        setTimeout(() => {
+            pullIndicator.classList.remove("active");
+            isRefreshing = false;
+        }, 700);
+    }
+
+    let touchStartY = 0;
+    cardEl.addEventListener("touchstart", (e) => {
+        touchStartY = e.touches[0].clientY;
+    });
+    cardEl.addEventListener("touchend", (e) => {
+        const touchEndY = e.changedTouches[0].clientY;
+        const pullDistance = touchEndY - touchStartY;
+        if (pullDistance > 80) performRefresh();
+    });
+</script>
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(console.error);
+  }
+</script>
+
+</body>
+</html>

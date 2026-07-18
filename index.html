@@ -1,0 +1,1940 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<title>Discover</title>
+
+<!-- PWA Add to Home Screen (iOS) -->
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon.jpg">
+<link rel="apple-touch-icon" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" sizes="512x512" href="icon-512.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Discover">
+<meta name="theme-color" content="#ffffff">
+
+<!-- iPhone 16 Pro meta -->
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="format-detection" content="telephone=no">
+
+<!-- Leaflet Map CSS -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+:root{
+  --navy:#1F3350;
+  --navy-soft:#3C4E68;
+  --orange:#E8720C;
+  --orange-dark:#C25E08;
+  --line:#E7E7EA;
+  --bg:#FFFFFF;
+  --panel:#F6F6F7;
+  --red:#E85C43;
+  /* iPhone 16 Pro safe areas - Dynamic Island top, no home indicator bottom */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+html,body{
+  margin:0; padding:0; height:100%; overflow:hidden;
+  font-family:-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", Arial, sans-serif;
+  color:var(--navy); background:var(--bg);
+  /* iPhone 16 Pro viewport: 393 x 852 logical px */
+  max-width:520px;
+  margin:0 auto;
+}
+button{font-family:inherit; border:none; background:none; cursor:pointer;}
+a{color:inherit; text-decoration:none;}
+svg{display:block;}
+
+#app{
+  position:fixed; inset:0; display:flex; flex-direction:column;
+  max-width:520px; margin:0 auto; left:0; right:0;
+}
+
+.page{
+  position:absolute; inset:0; display:none; flex-direction:column;
+  padding-top:var(--safe-top);
+  /* Bottom padding matches the bottom nav height (64px) so content is not hidden */
+  padding-bottom:64px;
+  overflow:hidden;
+}
+.page.active{display:flex;}
+#page-scan, #page-servo{ padding-bottom:0; }
+#page-account{ overflow-y:auto; -webkit-overflow-scrolling:touch; }
+
+/* ---------- shared top bar ---------- */
+.topbar{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:14px 18px 10px;
+  flex-shrink:0;
+}
+.icon-btn{
+  width:34px; height:34px; display:flex; align-items:center; justify-content:center;
+  color:var(--navy-soft);
+}
+.icon-btn.orange{color:var(--orange);}
+.topbar-icons{display:flex; align-items:center; gap:18px;}
+
+/* ---------- HOME PAGE ---------- */
+.home-scroll{
+  flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch;
+  padding-bottom:40px;
+}
+.discover-title{
+  font-size:32px; font-weight:800; padding:2px 18px 14px; letter-spacing:-0.5px;
+}
+.section-head{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:18px 18px 10px;
+}
+.section-head h3{margin:0; font-size:19px; font-weight:700;}
+.see-all{color:var(--orange); font-weight:600; font-size:15px; cursor:pointer;}
+
+.carousel{
+  display:flex; gap:12px; overflow-x:auto; scroll-snap-type:x mandatory;
+  padding:2px 18px 6px; -webkit-overflow-scrolling:touch;
+}
+.carousel::-webkit-scrollbar{display:none;}
+.carousel-card{
+  flex:0 0 30%; scroll-snap-align:start; aspect-ratio:1/1;
+  border-radius:16px; overflow:hidden; background:#ddd;
+  min-width:108px; position:relative;
+  cursor:pointer;
+}
+.carousel-card img{width:100%; height:100%; object-fit:cover; display:block;}
+.carousel-card .fallback-label{
+  position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+  color:#333; font-size:12px; font-weight:600; text-align:center; padding:6px;
+  background:#f0f0f0;
+}
+
+.services-list{padding:6px 18px 0;}
+.list-row{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:16px 2px; border-bottom:1px solid var(--line);
+  cursor:pointer;
+  transition:background .15s;
+}
+.list-row:hover{background:#fafafa;}
+.list-row span{font-size:16px; font-weight:600;}
+.list-row svg{color:#B9BEC7; flex-shrink:0;}
+
+/* ---------- ACCOUNT PAGE ---------- */
+#page-account{
+  background:#ffffff;
+  color:#111111;
+  -webkit-overflow-scrolling:touch;
+}
+.account-title{
+  font-size:32px;
+  font-weight:800;
+  padding:16px 18px 14px;
+  letter-spacing:-0.5px;
+}
+.user-profile-banner{
+  background:linear-gradient(135deg,#f0f7ff,#e6f0fa);
+  margin:0 18px 16px;
+  padding:16px;
+  display:flex;
+  align-items:center;
+  gap:12px;
+  border-radius:14px;
+  box-shadow:0 1px 3px rgba(0,0,0,0.04);
+}
+.user-avatar-box{
+  width:52px;
+  height:52px;
+  background:linear-gradient(135deg,#2563eb,#1e40af);
+  border-radius:999px;
+  flex-shrink:0;
+  display:grid;
+  place-items:center;
+}
+.profile-text-group{
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+  flex:1;
+}
+.user-fullname{
+  font-size:17px;
+  font-weight:700;
+  color:#111;
+}
+.profile-subtext{
+  color:#666;
+  font-size:13px;
+}
+
+/* Personal info card (DOB) */
+.personal-info-card{
+  margin:0 18px 20px;
+  background:#fafafa;
+  border:1px solid #eee;
+  border-radius:12px;
+  padding:14px 16px;
+}
+.personal-info-card h4{
+  margin:0 0 10px;
+  font-size:13px;
+  font-weight:600;
+  color:#888;
+  text-transform:uppercase;
+  letter-spacing:0.5px;
+}
+.info-row{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:6px 0;
+  font-size:15px;
+}
+.info-row + .info-row{border-top:1px solid #eee;}
+.info-label{color:#666; font-weight:500;}
+.info-value{color:#111; font-weight:600;}
+
+.menu-list{padding:0 18px;}
+.menu-item{
+  padding:16px 0;
+  border-bottom:1px solid #e5e7eb;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  cursor:pointer;
+  transition:background .15s;
+}
+.menu-item:hover, .menu-item:active{background:#f7f7f7;}
+.menu-text-wrap h3{
+  font-size:16px;
+  font-weight:600;
+  color:#111;
+  margin:0;
+}
+.menu-text-wrap p{
+  font-size:13px;
+  color:#666;
+  margin-top:3px;
+}
+.arrow-icon{
+  width:18px;
+  height:18px;
+  fill:#999;
+  flex-shrink:0;
+}
+.app-version{
+  text-align:center;
+  margin-top:32px;
+  margin-bottom:20px;
+  font-size:13px;
+  color:#999;
+}
+
+/* ---------- BOTTOM NAV — locked to the very bottom of the viewport ---------- */
+.bottom-nav{
+  display:flex; justify-content:space-around; align-items:center;
+  /* Icons centered vertically in 64px; ZERO bottom padding so the bar
+     sits flush against the very bottom edge of the iPhone screen. */
+  padding:0 4px;
+  border-top:1px solid var(--line); background:var(--bg);
+  position:fixed; left:0; right:0; bottom:0; z-index:50;
+  max-width:520px; margin:0 auto;
+  height:64px;
+  /* Defeat any inherited safe-area offset so the nav is truly pinned to bottom:0 */
+  padding-bottom:0 !important;
+  margin-bottom:0 !important;
+  transform:translateZ(0);
+  -webkit-transform:translateZ(0);
+}
+.nav-btn{
+  display:flex; flex-direction:column; align-items:center; gap:3px;
+  color:#9AA0AA; font-size:11px; font-weight:600; flex:1;
+  padding:0; height:100%; justify-content:center;
+  padding-top:6px;
+}
+.nav-btn.active{color:var(--navy);}
+.nav-btn svg{color:inherit;}
+
+/* ---------- SUB PAGES (Contact us, Find us online, etc.) ---------- */
+.subpage{
+  position:absolute; inset:0; display:none; flex-direction:column;
+  background:#fff;
+  z-index:30;
+  padding-top:var(--safe-top);
+  padding-bottom:64px;
+  overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
+}
+.subpage.active{display:flex;}
+.subpage-header{
+  display:flex; align-items:center; gap:10px;
+  padding:10px 14px 12px;
+  border-bottom:1px solid var(--line);
+  flex-shrink:0;
+}
+.back-btn{
+  width:34px; height:34px; display:flex; align-items:center; justify-content:center;
+  color:var(--orange);
+}
+.subpage-title{font-size:17px; font-weight:700; flex:1;}
+.subpage-body{padding:20px 18px; flex:1;}
+.subpage-body h2{font-size:22px; font-weight:800; margin:0 0 6px;}
+.subpage-body .lead{color:#666; font-size:14px; margin-bottom:20px;}
+.subpage-body p{font-size:15px; line-height:1.55; color:#333; margin:0 0 14px;}
+
+.contact-card{
+  display:flex; align-items:center; gap:14px;
+  padding:16px;
+  background:#f7f7f8;
+  border-radius:12px;
+  margin-bottom:12px;
+  cursor:pointer;
+  transition:background .15s;
+}
+.contact-card:hover{background:#eeeef0;}
+.contact-icon{
+  width:42px; height:42px; border-radius:999px;
+  background:var(--orange); color:#fff;
+  display:flex; align-items:center; justify-content:center;
+  flex-shrink:0;
+}
+.contact-text{flex:1;}
+.contact-text h4{margin:0; font-size:15px; font-weight:700;}
+.contact-text p{margin:2px 0 0; font-size:13px; color:#666;}
+
+.social-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+  margin-top:8px;
+}
+.social-card{
+  background:#f7f7f8;
+  border-radius:12px;
+  padding:18px 14px;
+  text-align:center;
+  cursor:pointer;
+  transition:background .15s, transform .15s;
+}
+.social-card:hover{background:#eeeef0;}
+.social-card:active{transform:scale(0.97);}
+.social-icon-wrap{
+  width:48px; height:48px; border-radius:12px;
+  margin:0 auto 10px;
+  display:flex; align-items:center; justify-content:center;
+  color:#fff;
+}
+.social-card h4{margin:0 0 2px; font-size:14px; font-weight:700;}
+.social-card p{margin:0; font-size:12px; color:#666;}
+
+.settings-group{
+  background:#f7f7f8;
+  border-radius:12px;
+  margin-bottom:18px;
+  overflow:hidden;
+}
+.settings-row{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:14px 16px;
+  border-bottom:1px solid #e5e7eb;
+  font-size:15px;
+  color:#111;
+  cursor:pointer;
+}
+.settings-row:last-child{border-bottom:none;}
+.settings-row .row-label{font-weight:500;}
+.settings-row .row-value{color:#666; font-size:14px;}
+
+/* Toggle switch */
+.toggle{
+  position:relative;
+  width:46px; height:28px;
+  background:#d1d1d6;
+  border-radius:14px;
+  transition:background .2s;
+  cursor:pointer;
+  flex-shrink:0;
+}
+.toggle::after{
+  content:'';
+  position:absolute;
+  top:2px; left:2px;
+  width:24px; height:24px;
+  background:#fff;
+  border-radius:50%;
+  box-shadow:0 1px 3px rgba(0,0,0,0.2);
+  transition:transform .2s;
+}
+.toggle.on{background:#34c759;}
+.toggle.on::after{transform:translateX(18px);}
+
+/* ---------- WALLET PAGE ---------- */
+#page-wallet{background:var(--panel);}
+.wallet-header{padding:8px 18px 6px;}
+.wallet-header h2{font-size:30px; font-weight:800; margin:6px 0 0;}
+.wallet-stack-wrap{
+  position:relative; flex:1; padding:10px 18px 30px; overflow:visible;
+}
+.wallet-card{
+  position:absolute; left:18px; right:18px; height:200px; border-radius:18px;
+  padding:18px 20px; color:#fff; box-shadow:0 10px 24px rgba(0,0,0,.18);
+  transition:transform .38s cubic-bezier(.32,.72,0,1), box-shadow .38s;
+  display:flex; flex-direction:column; justify-content:space-between;
+  cursor:pointer;
+}
+.wallet-card .card-top{display:flex; justify-content:space-between; align-items:flex-start;}
+.wallet-card .card-name{font-size:15px; font-weight:700; opacity:.95;}
+.wallet-card .card-type{font-size:11px; font-weight:600; opacity:.75; text-transform:uppercase; letter-spacing:.06em;}
+.wallet-card .card-number{font-size:17px; letter-spacing:2px; font-weight:600;}
+.wallet-card .card-bottom{display:flex; justify-content:space-between; align-items:flex-end; font-size:11px; opacity:.85;}
+.wallet-card .barcode{
+  height:34px; border-radius:6px; background:
+    repeating-linear-gradient(90deg,#fff 0 2px, transparent 2px 5px);
+  opacity:.9; margin-top:8px;
+}
+.wallet-card.expanded{box-shadow:0 20px 40px rgba(0,0,0,.28); z-index:10;}
+.wallet-hint{
+  text-align:center; color:#9AA0AA; font-size:13px; padding:8px 18px 0; flex-shrink:0;
+}
+
+/* ---------- SCAN QR PAGE ---------- */
+#page-scan{background:#000; color:#fff; padding-top:0;}
+.scan-video-wrap{position:relative; flex:1; overflow:hidden; background:#000;}
+#scan-video{width:100%; height:100%; object-fit:cover;}
+#scan-canvas{display:none;}
+.scan-topbar{
+  position:absolute; top:calc(16px + var(--safe-top)); left:16px; right:16px;
+  display:flex; justify-content:space-between; align-items:center; z-index:5;
+}
+.help-pill{
+  background:var(--orange); color:#fff; font-weight:700; font-size:14px;
+  padding:9px 20px; border-radius:20px;
+}
+.close-circle{
+  width:38px; height:38px; border-radius:50%; background:#fff; color:var(--orange);
+  display:flex; align-items:center; justify-content:center;
+}
+.scan-frame{
+  position:absolute; top:50%; left:50%; transform:translate(-50%,-58%);
+  width:240px; height:240px; pointer-events:none;
+}
+.scan-frame svg{width:100%; height:100%;}
+.scan-caption{
+  position:absolute; left:0; right:0; bottom:calc(90px + var(--safe-bottom));
+  text-align:center; font-weight:600; font-size:14px; padding:0 30px; color:#fff;
+}
+.torch-btn{
+  position:absolute; right:20px; bottom:calc(120px + var(--safe-bottom));
+  width:50px; height:50px; border-radius:50%; background:rgba(255,255,255,.15);
+  display:flex; align-items:center; justify-content:center; color:#fff;
+  backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px);
+}
+.torch-btn.on{background:var(--orange); color:#fff;}
+.scan-sheet{
+  position:absolute; left:0; right:0; bottom:0; background:#fff; color:var(--navy);
+  border-radius:20px 20px 0 0; padding:18px 22px calc(18px + var(--safe-bottom));
+  text-align:center; font-weight:600; font-size:14px; color:#6b7280;
+}
+.scan-result{
+  position:absolute; inset:0; background:rgba(0,0,0,.55); display:none;
+  align-items:center; justify-content:center; z-index:20; padding:24px;
+}
+.scan-result.show{display:flex;}
+.scan-result-card{
+  background:#fff; color:var(--navy); border-radius:18px; padding:22px;
+  width:100%; max-width:320px; text-align:center;
+}
+.scan-result-card h4{margin:6px 0 4px; font-size:17px;}
+.scan-result-card p{
+  word-break:break-all; font-size:14px; color:#555; margin:0 0 16px;
+  max-height:100px; overflow-y:auto;
+}
+.scan-result-actions{display:flex; gap:10px;}
+.scan-result-actions button{
+  flex:1; padding:11px 0; border-radius:12px; font-weight:700; font-size:14px;
+}
+.btn-primary{background:var(--orange); color:#fff;}
+.btn-secondary{background:var(--panel); color:var(--navy);}
+
+/* ---------- SERVO SAVER PAGE ---------- */
+#page-servo{padding-top:0;}
+.servo-map-wrap{flex:1; position:relative;}
+#servo-map{position:absolute; inset:0; width:100%; height:100%;}
+.servo-status{
+  position:absolute; top:calc(14px + var(--safe-top)); left:14px; right:14px;
+  z-index:400; display:flex; gap:8px;
+}
+.chip{
+  background:#fff; padding:9px 16px; border-radius:20px; font-weight:700; font-size:13px;
+  box-shadow:0 2px 10px rgba(0,0,0,.15); display:flex; align-items:center; gap:6px;
+}
+.chip.orange{background:var(--orange); color:#fff;}
+.locate-btn{
+  position:absolute; right:16px; bottom:150px; z-index:400;
+  width:42px; height:42px; border-radius:50%; background:#fff;
+  box-shadow:0 2px 10px rgba(0,0,0,.2); display:flex; align-items:center; justify-content:center;
+  color:var(--navy);
+}
+.servo-bottom{
+  position:absolute; left:14px; right:14px; bottom:14px; z-index:400;
+  display:flex; flex-direction:column; gap:10px;
+}
+.servo-toggles{display:flex; justify-content:space-between;}
+.search-pill{
+  background:#fff; border-radius:24px; padding:12px 18px; display:flex; align-items:center; gap:10px;
+  box-shadow:0 2px 12px rgba(0,0,0,.15); color:#9AA0AA; font-size:15px;
+}
+.fuel-marker{
+  background:var(--orange); color:#fff; font-weight:800; font-size:11px;
+  padding:5px 8px; border-radius:14px; box-shadow:0 2px 6px rgba(0,0,0,.3);
+  white-space:nowrap; border:2px solid #fff;
+}
+.user-dot{
+  width:16px; height:16px; border-radius:50%; background:#2F7DE1; border:3px solid #fff;
+  box-shadow:0 0 0 4px rgba(47,125,225,.25);
+}
+</style>
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ================= HOME / DISCOVER ================= -->
+  <section id="page-home" class="page active">
+    <div class="topbar">
+      <button class="icon-btn" aria-label="Profile" onclick="goPage('account')">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="8" r="4"/><path d="M4 20c1.5-4 5-6 8-6s6.5 2 8 6"/></svg>
+      </button>
+      <div class="topbar-icons">
+        <button class="icon-btn orange" aria-label="Search" onclick="openSubPage('subpage-search')">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        </button>
+        <button class="icon-btn orange" aria-label="Scan QR" onclick="goPage('scan')">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="6" height="6" rx="1"/><rect x="15" y="3" width="6" height="6" rx="1"/><rect x="3" y="15" width="6" height="6" rx="1"/><path d="M15 15h2v2h-2zM19 15h2v2h-2zM15 19h2v2h-2zM19 19h2v2h-2z"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="home-scroll">
+      <h1 class="discover-title">Discover</h1>
+
+      <div class="section-head">
+        <h3>Most viewed</h3><span class="see-all" onclick="openSubPage('subpage-most-viewed')">See all</span>
+      </div>
+      <div class="carousel" id="carousel-viewed"></div>
+
+      <div class="section-head">
+        <h3>Suggested for you</h3><span class="see-all" onclick="openSubPage('subpage-suggested')">&#8226;&#8226;&#8226;</span>
+      </div>
+      <div class="carousel" id="carousel-suggested"></div>
+
+      <div class="section-head"><h3>All services</h3></div>
+      <div class="services-list" id="services-list"></div>
+    </div>
+  </section>
+
+  <!-- ================= ACCOUNT ================= -->
+  <section id="page-account" class="page">
+    <h1 class="account-title">Account</h1>
+
+    <div class="user-profile-banner">
+      <div class="user-avatar-box">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="white">
+          <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-3.31 0-6 2.69-6 6v2h12v-2c0-3.31-2.69-6-6-6z"/>
+        </svg>
+      </div>
+      <div class="profile-text-group">
+        <h2 class="user-fullname">Benjamin Han</h2>
+        <p class="profile-subtext">Manage your account</p>
+      </div>
+    </div>
+
+    <!-- Personal info card with D.O.B. -->
+    <div class="personal-info-card" onclick="openSubPage('subpage-personal')">
+      <h4>Personal information</h4>
+      <div class="info-row">
+        <span class="info-label">Full name</span>
+        <span class="info-value">Benjamin Han</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Date of birth</span>
+        <span class="info-value">26 April 2007</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Email</span>
+        <span class="info-value">benjamin.han08@gmail.com</span>
+      </div>
+    </div>
+
+    <div class="menu-list">
+      <div class="menu-item" onclick="openSubPage('subpage-contact')">
+        <div class="menu-text-wrap">
+          <h3>Contact us</h3>
+          <p>Get in touch with our support team</p>
+        </div>
+        <svg class="arrow-icon" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+      </div>
+      <div class="menu-item" onclick="openSubPage('subpage-online')">
+        <div class="menu-text-wrap">
+          <h3>Find us online</h3>
+          <p>Follow us on social media</p>
+        </div>
+        <svg class="arrow-icon" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+      </div>
+      <div class="menu-item" onclick="openSubPage('subpage-terms')">
+        <div class="menu-text-wrap">
+          <h3>Terms of use</h3>
+          <p>Read the terms and conditions</p>
+        </div>
+        <svg class="arrow-icon" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+      </div>
+      <div class="menu-item" onclick="openSubPage('subpage-privacy')">
+        <div class="menu-text-wrap">
+          <h3>Privacy policy</h3>
+          <p>How we protect your information</p>
+        </div>
+        <svg class="arrow-icon" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+      </div>
+      <div class="menu-item" onclick="openSubPage('subpage-settings')">
+        <div class="menu-text-wrap">
+          <h3>App settings</h3>
+          <p>Notifications, security and more</p>
+        </div>
+        <svg class="arrow-icon" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+      </div>
+    </div>
+
+    <div class="app-version">App version 1.56.0</div>
+  </section>
+
+  <!-- ================= WALLET ================= -->
+  <section id="page-wallet" class="page">
+    <div class="topbar">
+      <div></div>
+      <div class="topbar-icons">
+        <button class="icon-btn orange" onclick="openSubPage('subpage-wallet-history')"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 2"/></svg></button>
+      </div>
+    </div>
+    <div class="wallet-header"><h2>Wallet</h2></div>
+    <div class="wallet-stack-wrap" id="wallet-stack"></div>
+    <p class="wallet-hint" id="wallet-hint">Tap a card to view it</p>
+  </section>
+
+  <!-- ================= SCAN QR ================= -->
+  <section id="page-scan" class="page">
+    <div class="scan-video-wrap">
+      <video id="scan-video" playsinline autoplay muted></video>
+      <canvas id="scan-canvas"></canvas>
+
+      <div class="scan-topbar">
+        <button class="help-pill" onclick="openSubPage('subpage-scan-help')">Help</button>
+        <button class="close-circle" onclick="goPage('home')" aria-label="Close">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </div>
+
+      <div class="scan-frame">
+        <svg viewBox="0 0 100 100" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round">
+          <path d="M4 24V8h16"/><path d="M76 8h16v16"/><path d="M96 76v16H80"/><path d="M24 96H8V80"/>
+        </svg>
+      </div>
+
+      <button class="torch-btn" id="torch-btn" onclick="toggleTorch()" aria-label="Flashlight">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M7 2h10l-2 8h4l-9 12 2-9H8z"/></svg>
+      </button>
+
+      <p class="scan-caption" id="scan-caption">Bring the QR Code into view and hold steady.</p>
+      <div class="scan-sheet" id="scan-sheet">Camera starting…</div>
+
+      <div class="scan-result" id="scan-result">
+        <div class="scan-result-card">
+          <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#2AA65C" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 12l2.5 2.5L16 9"/></svg>
+          <h4>QR code detected</h4>
+          <p id="scan-result-text"></p>
+          <div class="scan-result-actions">
+            <button class="btn-secondary" onclick="resumeScan()">Scan again</button>
+            <button class="btn-primary" onclick="openScanResult()">Open</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= SERVO SAVER (LIVE MAP) ================= -->
+  <section id="page-servo" class="page">
+    <div class="servo-map-wrap">
+      <div id="servo-map"></div>
+      <div class="servo-status">
+        <div class="chip orange" id="fuel-chip" onclick="openSubPage('subpage-fuel-types')">U91</div>
+        <div class="chip" onclick="openSubPage('subpage-brands')">Brands</div>
+      </div>
+      <button class="locate-btn" onclick="locateMe()" aria-label="Locate me">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+      </button>
+      <div class="servo-bottom">
+        <div class="servo-toggles">
+          <div class="chip" onclick="openSubPage('subpage-servo-list')">List</div>
+        </div>
+        <div class="search-pill" onclick="openSubPage('subpage-servo-search')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+          Search
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= SUB PAGES (overlay panels) ================= -->
+
+  <!-- Search -->
+  <section id="subpage-search" class="subpage">
+    <div class="subpage-header">
+      <button class="back-btn" onclick="closeSubPage()" aria-label="Back">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M15 6l-6 6 6 6"/></svg>
+      </button>
+      <span class="subpage-title">Search</span>
+    </div>
+    <div class="subpage-body">
+      <h2>Search services</h2>
+      <p class="lead">Find government services, cards, and information.</p>
+      <div class="search-pill" style="background:#f7f7f8; box-shadow:none; border:1px solid #e5e7eb; padding:14px 18px;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9AA0AA" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        <span style="color:#9AA0AA;">Search for services…</span>
+      </div>
+      <div class="menu-list" style="padding:24px 0 0;">
+        <div class="menu-item" onclick="closeSubPage()">
+          <div class="menu-text-wrap"><h3>Recent searches</h3><p>Licence renewal, Medicare, Fine</p></div>
+          <svg class="arrow-icon" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </div>
+        <div class="menu-item" onclick="closeSubPage()">
+          <div class="menu-text-wrap"><h3>Popular topics</h3><p>What others are searching for</p></div>
+          <svg class="arrow-icon" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Most viewed — See all -->
+  <section id="subpage-most-viewed" class="subpage">
+    <div class="subpage-header">
+      <button class="back-btn" onclick="closeSubPage()" aria-label="Back">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M15 6l-6 6 6 6"/></svg>
+      </button>
+      <span class="subpage-title">Most viewed</span>
+    </div>
+    <div class="subpage-body">
+      <h2>Most viewed services</h2>
+      <p class="lead">The services Victorians open the most.</p>
+      <div class="menu-list" style="padding:0;">
+        <div class="menu-item" onclick="window.open('https://service.vic.gov.au/services/registration-rebate?channel=mobileApplication&section=tile','_blank')">
+          <div class="menu-text-wrap"><h3>Registration rebate</h3><p>Claim your vehicle registration rebate</p></div>
+          <svg class="arrow-icon" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </div>
+        <div class="menu-item" onclick="window.open('https://service.vic.gov.au/portals/parent-portal/?channel=mobileApplication&section=tile','_blank')">
+          <div class="menu-text-wrap"><h3>Parent portal</h3><p>Access parenting resources and payments</p></div>
+          <svg class="arrow-icon" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </div>
+        <div class="menu-item" onclick="window.open('https://www.energy.vic.gov.au/victorian-energy-upgrades/homes','_blank')">
+          <div class="menu-text-wrap"><h3>Victorian Energy Upgrades</h3><p>Save on energy bills for your home</p></div>
+          <svg class="arrow-icon" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </div>
+        <div class="menu-item" onclick="window.open('https://service.vic.gov.au/digital-birth-certificate?channel=mobileApplication&section=tile','_blank')">
+          <div class="menu-text-wrap"><h3>Digital birth certificate</h3><p>Order a digital birth certificate</p></div>
+          <svg class="arrow-icon" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </div>
+        <div class="menu-item" onclick="window.open('https://www.vic.gov.au/january-2026-victorian-bushfires','_blank')">
+          <div class="menu-text-wrap"><h3>Bushfire recovery</h3><p>Support and resources for affected communities</p></div>
+          <svg class="arrow-icon" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </div>
+        <div class="menu-item" onclick="window.location.href='license.html'">
+          <div class="menu-text-wrap"><h3>Drivers licence</h3><p>View your digital drivers licence</p></div>
+          <svg class="arrow-icon" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Suggested for you -->
+  <section id="subpage-suggested" class="subpage">
+    <div class="subpage-header">
+      <button class="back-btn" onclick="closeSubPage()" aria-label="Back">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M15 6l-6 6 6 6"/></svg>
+      </button>
+      <span class="subpage-title">Suggested for you</span>
+    </div>
+    <div class="subpage-body">
+      <h2>Suggested for you</h2>
+      <p class="lead">Personalised picks based on your activity.</p>
+      <div class="menu-list" style="padding:0;">
+        <div class="menu-item" onclick="window.open('https://service.vic.gov.au/portals/parent-portal/?channel=mobileApplication','_blank')">
+          <div class="menu-text-wrap"><h3>Parent portal</h3><p>Family payments and resources</p></div>
+          <svg class="arrow-icon" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </div>
+        <div class="menu-item" onclick="window.location.href='license.html'">
+          <div class="menu-text-wrap"><h3>Update your licence</h3><p>Renew or update your details</p></div>
+          <svg class="arrow-icon" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </div>
+        <div class="menu-item" onclick="openSubPage('subpage-fines')">
+          <div class="menu-text-wrap"><h3>Check fines</h3><p>View and pay any outstanding fines</p></div>
+          <svg class="arrow-icon" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Personal info detail -->
+  <section id="subpage-personal" class="subpage">
+    <div class="subpage-header">
+      <button class="back-btn" onclick="closeSubPage()" aria-label="Back">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M15 6l-6 6 6 6"/></svg>
+      </button>
+      <span class="subpage-title">Personal information</span>
+    </div>
+    <div class="subpage-body">
+      <h2>Your details</h2>
+      <p class="lead">Information linked to your Service Victoria account.</p>
+      <div class="settings-group" style="background:#fff; border:1px solid #e5e7eb;">
+        <div class="settings-row"><span class="row-label">Full name</span><span class="row-value">Benjamin Han</span></div>
+        <div class="settings-row"><span class="row-label">Date of birth</span><span class="row-value">26 April 2007</span></div>
+        <div class="settings-row"><span class="row-label">Email</span><span class="row-value">benjamin.han08@gmail.com</span></div>
+        <div class="settings-row"><span class="row-label">Phone</span><span class="row-value">+61 4•• ••• 092</span></div>
+        <div class="settings-row"><span class="row-label">Address</span><span class="row-value">10 Lorna Street, Cranbourne VIC 3977</span></div>
+      </div>
+      <p style="font-size:13px; color:#999; text-align:center; margin-top:24px;">To update your details, visit a Service Victoria centre.</p>
+    </div>
+  </section>
+
+  <!-- Contact us -->
+  <section id="subpage-contact" class="subpage">
+    <div class="subpage-header">
+      <button class="back-btn" onclick="closeSubPage()" aria-label="Back">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M15 6l-6 6 6 6"/></svg>
+      </button>
+      <span class="subpage-title">Contact us</span>
+    </div>
+    <div class="subpage-body">
+      <h2>Get in touch</h2>
+      <p class="lead">Our support team is here to help 7 days a week.</p>
+      <div class="contact-card" onclick="window.location.href='tel:131001'">
+        <div class="contact-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.4.6 3.7.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1-9.4 0-17-7.6-17-17 0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.7.1.4 0 .7-.2 1l-2.4 2.1z"/></svg>
+        </div>
+        <div class="contact-text"><h4>Call us</h4><p>13 10 01 — 7am to 9pm, 7 days</p></div>
+      </div>
+      <div class="contact-card" onclick="window.location.href='mailto:support@service.vic.gov.au'">
+        <div class="contact-icon" style="background:#2563eb;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
+        </div>
+        <div class="contact-text"><h4>Email support</h4><p>support@service.vic.gov.au</p></div>
+      </div>
+      <div class="contact-card" onclick="openSubPage('subpage-faq')">
+        <div class="contact-icon" style="background:#2AA65C;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm1 17h-2v-2h2v2zm2.1-7.7l-.9.9c-.7.7-1.2 1.3-1.2 2.8h-2v-.5c0-1.1.5-2 1.2-2.7l1.2-1.2c.4-.4.6-.9.6-1.4 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.2 1.8-4 4-4s4 1.8 4 4c0 .9-.4 1.7-.9 2.3z"/></svg>
+        </div>
+        <div class="contact-text"><h4>Help &amp; FAQ</h4><p>Browse answers to common questions</p></div>
+      </div>
+      <div class="contact-card" onclick="window.open('https://www.service.vic.gov.au/contact-us','_blank')">
+        <div class="contact-icon" style="background:#1F3350;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M12 2C8 2 5 5 5 9c0 5 7 13 7 13s7-8 7-13c0-4-3-7-7-7zm0 9.5c-1.4 0-2.5-1.1-2.5-2.5s1.1-2.5 2.5-2.5 2.5 1.1 2.5 2.5-1.1 2.5-2.5 2.5z"/></svg>
+        </div>
+        <div class="contact-text"><h4>Find a centre</h4><p>Service Victoria locations near you</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Find us online -->
+  <section id="subpage-online" class="subpage">
+    <div class="subpage-header">
+      <button class="back-btn" onclick="closeSubPage()" aria-label="Back">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M15 6l-6 6 6 6"/></svg>
+      </button>
+      <span class="subpage-title">Find us online</span>
+    </div>
+    <div class="subpage-body">
+      <h2>Find us online</h2>
+      <p class="lead">Follow Service Victoria and stay up to date.</p>
+      <div class="social-grid">
+        <div class="social-card" onclick="window.open('https://twitter.com/ServiceVic','_blank')">
+          <div class="social-icon-wrap" style="background:#1da1f2;">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="white"><path d="M22 5.8c-.7.3-1.5.6-2.4.7.9-.5 1.5-1.3 1.8-2.3-.8.5-1.7.8-2.7 1-1.5-1.6-4-1.7-5.6-.2-1 .9-1.4 2.3-1.1 3.6C8.6 8.4 5.4 6.7 3.2 4 2 6 2.7 8.5 4.6 9.8c-.6 0-1.3-.2-1.8-.5 0 1.9 1.3 3.6 3.1 4-.6.2-1.2.2-1.8.1.5 1.6 2 2.7 3.7 2.7-1.5 1.2-3.4 1.8-5.3 1.6 1.7 1.1 3.7 1.7 5.7 1.7 6.9 0 10.7-5.7 10.7-10.7v-.5c.7-.6 1.3-1.2 1.8-1.9z"/></svg>
+          </div>
+          <h4>Twitter</h4><p>@ServiceVic</p>
+        </div>
+        <div class="social-card" onclick="window.open('https://facebook.com/ServiceVictoria','_blank')">
+          <div class="social-icon-wrap" style="background:#1877f2;">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="white"><path d="M22 12c0-5.5-4.5-10-10-10S2 6.5 2 12c0 5 3.7 9.1 8.4 9.9V15h-2.5v-3h2.5V9.8c0-2.5 1.5-3.9 3.8-3.9 1.1 0 2.2.2 2.2.2v2.5h-1.3c-1.2 0-1.6.8-1.6 1.6V12h2.8l-.4 3h-2.3v6.9C18.3 21.1 22 17 22 12z"/></svg>
+          </div>
+          <h4>Facebook</h4><p>/ServiceVictoria</p>
+        </div>
+        <div class="social-card" onclick="window.open('https://instagram.com/servicevic','_blank')">
+          <div class="social-icon-wrap" style="background:linear-gradient(45deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888);">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="white"><path d="M12 2.2c3.2 0 3.6 0 4.8.1 1.2.1 1.8.2 2.2.4.6.2 1 .5 1.4 1 .5.4.7.8 1 1.4.2.4.4 1 .4 2.2.1 1.2.1 1.6.1 4.8s0 3.6-.1 4.8c-.1 1.2-.2 1.8-.4 2.2-.2.6-.5 1-1 1.4-.4.5-.8.7-1.4 1-.4.2-1 .4-2.2.4-1.2.1-1.6.1-4.8.1s-3.6 0-4.8-.1c-1.2-.1-1.8-.2-2.2-.4-.6-.2-1-.5-1.4-1-.5-.4-.7-.8-1-1.4-.2-.4-.4-1-.4-2.2C2.2 15.6 2.2 15.2 2.2 12s0-3.6.1-4.8c.1-1.2.2-1.8.4-2.2.2-.6.5-1 1-1.4.4-.5.8-.7 1.4-1 .4-.2 1-.4 2.2-.4 1.2-.1 1.6-.1 4.8-.1zm0 2.2c-3.1 0-3.5 0-4.7.1-1.1 0-1.7.2-2.1.4-.5.2-.9.4-1.3.8-.4.4-.6.8-.8 1.3-.2.4-.3 1-.4 2.1-.1 1.2-.1 1.6-.1 4.7s0 3.5.1 4.7c0 1.1.2 1.7.4 2.1.2.5.4.9.8 1.3.4.4.8.6 1.3.8.4.2 1 .3 2.1.4 1.2.1 1.6.1 4.7.1s3.5 0 4.7-.1c1.1 0 1.7-.2 2.1-.4.5-.2.9-.4 1.3-.8.4-.4.6-.8.8-1.3.2-.4.3-1 .4-2.1.1-1.2.1-1.6.1-4.7s0-3.5-.1-4.7c0-1.1-.2-1.7-.4-2.1-.2-.5-.4-.9-.8-1.3-.4-.4-.8-.6-1.3-.8-.4-.2-1-.3-2.1-.4-1.2-.1-1.6-.1-4.7-.1zm0 3.7a3.9 3.9 0 1 1 0 7.8 3.9 3.9 0 0 1 0-7.8zm0 6.4a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5zm5-6.6a.9.9 0 1 1-1.8 0 .9.9 0 0 1 1.8 0z"/></svg>
+          </div>
+          <h4>Instagram</h4><p>@servicevic</p>
+        </div>
+        <div class="social-card" onclick="window.open('https://linkedin.com/company/service-victoria','_blank')">
+          <div class="social-icon-wrap" style="background:#0a66c2;">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="white"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM8.3 18.3H5.7V10h2.6v8.3zM7 8.8c-.8 0-1.5-.7-1.5-1.5S6.2 5.8 7 5.8s1.5.7 1.5 1.5S7.8 8.8 7 8.8zm11.3 9.5h-2.6v-4c0-1 0-2.2-1.4-2.2-1.4 0-1.6 1.1-1.6 2.2v4h-2.6V10h2.5v1.1c.4-.7 1.2-1.4 2.5-1.4 2.7 0 3.2 1.8 3.2 4.1v4.5z"/></svg>
+          </div>
+          <h4>LinkedIn</h4><p>Service Victoria</p>
+        </div>
+      </div>
+      <div style="margin-top:24px;">
+        <div class="contact-card" onclick="window.open('https://www.service.vic.gov.au','_blank')">
+          <div class="contact-icon" style="background:var(--orange);">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm-1 17.9c-4.4-.5-7.9-4.2-7.9-8.9 0-.5 0-1 .1-1.4L9 14v1c0 1.1.9 2 2 2v2.9zm6.9-2.5c-.3-.8-1-1.4-1.9-1.4h-1v-3c0-.6-.4-1-1-1H8v-2h2c.6 0 1-.4 1-1V7h2c1.1 0 2-.9 2-2v-.4c2.5 1.2 4.3 3.7 4.3 6.7 0 2-.8 3.8-2.1 5.1l.7 1z"/></svg>
+          </div>
+          <div class="contact-text"><h4>Visit our website</h4><p>www.service.vic.gov.au</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Terms of use -->
+  <section id="subpage-terms" class="subpage">
+    <div class="subpage-header">
+      <button class="back-btn" onclick="closeSubPage()" aria-label="Back">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M15 6l-6 6 6 6"/></svg>
+      </button>
+      <span class="subpage-title">Terms of use</span>
+    </div>
+    <div class="subpage-body">
+      <h2>Terms of use</h2>
+      <p class="lead">Last updated: 1 July 2026</p>
+      <p>By accessing or using the Service Victoria app, you agree to be bound by these terms of use. If you do not agree, please do not use the app.</p>
+      <p>The Service Victoria app is provided by the State of Victoria. It offers a single sign-on for accessing participating Victorian government services, as well as a digital wallet for approved cards and licences.</p>
+      <h3 style="font-size:16px; margin:18px 0 6px;">Your responsibilities</h3>
+      <p>You are responsible for keeping your sign-in details secure and for the accuracy of information you provide. Do not share your account with others.</p>
+      <h3 style="font-size:16px; margin:18px 0 6px;">Service availability</h3>
+      <p>We aim to keep the app available at all times, but occasional downtime may occur. Critical services will always be available through alternative channels.</p>
+      <h3 style="font-size:16px; margin:18px 0 6px;">Changes to these terms</h3>
+      <p>We may update these terms from time to time. Continued use of the app after changes indicates acceptance of the updated terms.</p>
+    </div>
+  </section>
+
+  <!-- Privacy policy -->
+  <section id="subpage-privacy" class="subpage">
+    <div class="subpage-header">
+      <button class="back-btn" onclick="closeSubPage()" aria-label="Back">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M15 6l-6 6 6 6"/></svg>
+      </button>
+      <span class="subpage-title">Privacy policy</span>
+    </div>
+    <div class="subpage-body">
+      <h2>Privacy policy</h2>
+      <p class="lead">How we protect your information.</p>
+      <p>Your privacy is important to us. This policy explains what information we collect, how we use it, and the choices you have.</p>
+      <h3 style="font-size:16px; margin:18px 0 6px;">Information we collect</h3>
+      <p>We collect the information you provide when creating your account (name, date of birth, contact details) and usage data to improve the app.</p>
+      <h3 style="font-size:16px; margin:18px 0 6px;">How we use your information</h3>
+      <p>Your information is used to verify your identity, provide access to services, and personalise your experience. We do not sell your data.</p>
+      <h3 style="font-size:16px; margin:18px 0 6px;">Data security</h3>
+      <p>We use industry-standard encryption and security measures to protect your data. Your date of birth (26 April 2007) is stored securely and only shared with your consent.</p>
+      <h3 style="font-size:16px; margin:18px 0 6px;">Your rights</h3>
+      <p>You can access, correct, or delete your personal information at any time through the app or by contacting us.</p>
+    </div>
+  </section>
+
+  <!-- App settings -->
+  <section id="subpage-settings" class="subpage">
+    <div class="subpage-header">
+      <button class="back-btn" onclick="closeSubPage()" aria-label="Back">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M15 6l-6 6 6 6"/></svg>
+      </button>
+      <span class="subpage-title">App settings</span>
+    </div>
+    <div class="subpage-body">
+      <h2>App settings</h2>
+      <p class="lead">Manage your preferences.</p>
+
+      <h3 style="font-size:13px; font-weight:600; color:#888; text-transform:uppercase; letter-spacing:0.5px; margin:6px 0 8px;">Notifications</h3>
+      <div class="settings-group">
+        <div class="settings-row" onclick="toggleRow(this)"><span class="row-label">Push notifications</span><div class="toggle on" onclick="event.stopPropagation(); this.classList.toggle('on')"></div></div>
+        <div class="settings-row" onclick="toggleRow(this)"><span class="row-label">Service updates</span><div class="toggle on" onclick="event.stopPropagation(); this.classList.toggle('on')"></div></div>
+        <div class="settings-row" onclick="toggleRow(this)"><span class="row-label">Marketing emails</span><div class="toggle" onclick="event.stopPropagation(); this.classList.toggle('on')"></div></div>
+      </div>
+
+      <h3 style="font-size:13px; font-weight:600; color:#888; text-transform:uppercase; letter-spacing:0.5px; margin:18px 0 8px;">Security</h3>
+      <div class="settings-group">
+        <div class="settings-row" onclick="openSubPage('subpage-change-pin')"><span class="row-label">Change PIN</span><span class="row-value">›</span></div>
+        <div class="settings-row" onclick="openSubPage('subpage-biometric')"><span class="row-label">Face ID</span><div class="toggle on" onclick="event.stopPropagation(); this.classList.toggle('on')"></div></div>
+        <div class="settings-row" onclick="openSubPage('subpage-2fa')"><span class="row-label">Two-factor authentication</span><span class="row-value">Off ›</span></div>
+      </div>
+
+      <h3 style="font-size:13px; font-weight:600; color:#888; text-transform:uppercase; letter-spacing:0.5px; margin:18px 0 8px;">Appearance</h3>
+      <div class="settings-group">
+        <div class="settings-row" onclick="openSubPage('subpage-language')"><span class="row-label">Language</span><span class="row-value">English ›</span></div>
+        <div class="settings-row" onclick="toggleRow(this)"><span class="row-label">Dark mode</span><div class="toggle" onclick="event.stopPropagation(); this.classList.toggle('on')"></div></div>
+      </div>
+
+      <h3 style="font-size:13px; font-weight:600; color:#888; text-transform:uppercase; letter-spacing:0.5px; margin:18px 0 8px;">Account</h3>
+      <div class="settings-group">
+        <div class="settings-row" onclick="openSubPage('subpage-personal')"><span class="row-label">Personal information</span><span class="row-value">›</span></div>
+        <div class="settings-row" onclick="openSubPage('subpage-linked')"><span class="row-label">Linked services</span><span class="row-value">3 ›</span></div>
+        <div class="settings-row" onclick="if(confirm('Sign out of Service Victoria?')) alert('You have been signed out.')"><span class="row-label" style="color:#E85C43;">Sign out</span><span></span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Generic settings detail subpages -->
+  <section id="subpage-change-pin" class="subpage">
+    <div class="subpage-header">
+      <button class="back-btn" onclick="closeSubPage()" aria-label="Back"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M15 6l-6 6 6 6"/></svg></button>
+      <span class="subpage-title">Change PIN</span>
+    </div>
+    <div class="subpage-body">
+      <h2>Change your PIN</h2>
+      <p class="lead">Your PIN keeps your account secure.</p>
+      <div class="settings-group" style="background:#fff; border:1px solid #e5e7eb;">
+        <div class="settings-row"><span class="row-label">Current PIN</span><span class="row-value">••••</span></div>
+        <div class="settings-row"><span class="row-label">New PIN</span><span class="row-value">Enter</span></div>
+        <div class="settings-row"><span class="row-label">Confirm new PIN</span><span class="row-value">Enter</span></div>
+      </div>
+      <button class="btn-primary" style="width:100%; margin-top:18px; padding:14px; border-radius:12px; font-weight:700;" onclick="alert('PIN updated successfully.')">Update PIN</button>
+    </div>
+  </section>
+
+  <section id="subpage-biometric" class="subpage">
+    <div class="subpage-header">
+      <button class="back-btn" onclick="closeSubPage()" aria-label="Back"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M15 6l-6 6 6 6"/></svg></button>
+      <span class="subpage-title">Face ID</span>
+    </div>
+    <div class="subpage-body">
+      <h2>Face ID</h2>
+      <p class="lead">Use Face ID to unlock the app and confirm actions quickly.</p>
+      <div class="settings-group">
+        <div class="settings-row"><span class="row-label">Unlock app with Face ID</span><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+        <div class="settings-row"><span class="row-label">Confirm wallet actions</span><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="subpage-2fa" class="subpage">
+    <div class="subpage-header">
+      <button class="back-btn" onclick="closeSubPage()" aria-label="Back"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M15 6l-6 6 6 6"/></svg></button>
+      <span class="subpage-title">Two-factor authentication</span>
+    </div>
+    <div class="subpage-body">
+      <h2>Two-factor authentication</h2>
+      <p class="lead">Add an extra layer of security to your account.</p>
+      <div class="settings-group">
+        <div class="settings-row"><span class="row-label">Authenticator app</span><span class="row-value">Not set up ›</span></div>
+        <div class="settings-row"><span class="row-label">SMS verification</span><div class="toggle" onclick="this.classList.toggle('on')"></div></div>
+        <div class="settings-row"><span class="row-label">Backup codes</span><span class="row-value">Generate ›</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="subpage-language" class="subpage">
+    <div class="subpage-header">
+      <button class="back-btn" onclick="closeSubPage()" aria-label="Back"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M15 6l-6 6 6 6"/></svg></button>
+      <span class="subpage-title">Language</span>
+    </div>
+    <div class="subpage-body">
+      <h2>Language</h2>
+      <p class="lead">Choose your preferred language.</p>
+      <div class="settings-group">
+        <div class="settings-row" onclick="this.querySelector('.row-value').textContent='✓'"><span class="row-label">English</span><span class="row-value" style="color:var(--orange); font-weight:700;">✓</span></div>
+        <div class="settings-row" onclick="this.parentElement.querySelectorAll('.row-value').forEach(v=>v.textContent=''); this.querySelector('.row-value').textContent='✓'"><span class="row-label">中文 (简体)</span><span class="row-value" style="color:var(--orange); font-weight:700;"></span></div>
+        <div class="settings-row" onclick="this.parentElement.querySelectorAll('.row-value').forEach(v=>v.textContent=''); this.querySelector('.row-value').textContent='✓'"><span class="row-label">Tiếng Việt</span><span class="row-value" style="color:var(--orange); font-weight:700;"></span></div>
+        <div class="settings-row" onclick="this.parentElement.querySelectorAll('.row-value').forEach(v=>v.textContent=''); this.querySelector('.row-value').textContent='✓'"><span class="row-label">العربية</span><span class="row-value" style="color:var(--orange); font-weight:700;"></span></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="subpage-linked" class="subpage">
+    <div class="subpage-header">
+      <button class="back-btn" onclick="closeSubPage()" aria-label="Back"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M15 6l-6 6 6 6"/></svg></button>
+      <span class="subpage-title">Linked services</span>
+    </div>
+    <div class="subpage-body">
+      <h2>Linked services</h2>
+      <p class="lead">Services connected to your account.</p>
+      <div class="settings-group">
+        <div class="settings-row"><span class="row-label">VicRoads</span><span class="row-value" style="color:#2AA65C;">Linked ✓</span></div>
+        <div class="settings-row"><span class="row-label">Medicare</span><span class="row-value" style="color:#2AA65C;">Linked ✓</span></div>
+        <div class="settings-row"><span class="row-label">Centrelink</span><span class="row-value" style="color:#2AA65C;">Linked ✓</span></div>
+        <div class="settings-row"><span class="row-label">Australian Taxation Office</span><span class="row-value" style="color:#999;">Not linked</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Wallet-related subpages -->
+  <section id="subpage-wallet-history" class="subpage">
+    <div class="subpage-header">
+      <button class="back-btn" onclick="closeSubPage()" aria-label="Back"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M15 6l-6 6 6 6"/></svg></button>
+      <span class="subpage-title">Recent activity</span>
+    </div>
+    <div class="subpage-body">
+      <h2>Recent activity</h2>
+      <p class="lead">Your latest wallet and card activity.</p>
+      <div class="settings-group">
+        <div class="settings-row"><span class="row-label">Licence viewed</span><span class="row-value">Today, 9:42 am</span></div>
+        <div class="settings-row"><span class="row-label">Medicare used at pharmacy</span><span class="row-value">Yesterday</span></div>
+        <div class="settings-row"><span class="row-label">Fuel Saver applied</span><span class="row-value">12 Jul</span></div>
+        <div class="settings-row"><span class="row-label">Roadside Assist activated</span><span class="row-value">5 Jul</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="subpage-scan-help" class="subpage">
+    <div class="subpage-header">
+      <button class="back-btn" onclick="closeSubPage()" aria-label="Back"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M15 6l-6 6 6 6"/></svg></button>
+      <span class="subpage-title">Scan help</span>
+    </div>
+    <div class="subpage-body">
+      <h2>Scanning a QR code</h2>
+      <p class="lead">Point your camera at any QR code to scan it automatically.</p>
+      <h3 style="font-size:15px; margin:14px 0 6px;">Tips for a successful scan</h3>
+      <p>• Hold the phone steady, about 20–30 cm from the code.</p>
+      <p>• Make sure the entire code is in the frame.</p>
+      <p>• Use the flashlight button if it's dark.</p>
+      <p>• Avoid glare by tilting the phone slightly.</p>
+    </div>
+  </section>
+
+  <!-- Servo subpages -->
+  <section id="subpage-fuel-types" class="subpage">
+    <div class="subpage-header">
+      <button class="back-btn" onclick="closeSubPage()" aria-label="Back"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M15 6l-6 6 6 6"/></svg></button>
+      <span class="subpage-title">Fuel type</span>
+    </div>
+    <div class="subpage-body">
+      <h2>Choose your fuel</h2>
+      <p class="lead">Show prices for the fuel your car takes.</p>
+      <div class="settings-group">
+        <div class="settings-row" onclick="document.getElementById('fuel-chip').textContent='U91'"><span class="row-label">Unleaded 91</span><span class="row-value" style="color:var(--orange); font-weight:700;">✓</span></div>
+        <div class="settings-row" onclick="document.getElementById('fuel-chip').textContent='U95'"><span class="row-label">Unleaded 95</span><span class="row-value" style="color:var(--orange);"></span></div>
+        <div class="settings-row" onclick="document.getElementById('fuel-chip').textContent='U98'"><span class="row-label">Unleaded 98</span><span class="row-value" style="color:var(--orange);"></span></div>
+        <div class="settings-row" onclick="document.getElementById('fuel-chip').textContent='Diesel'"><span class="row-label">Diesel</span><span class="row-value" style="color:var(--orange);"></span></div>
+        <div class="settings-row" onclick="document.getElementById('fuel-chip').textContent='LPG'"><span class="row-label">LPG</span><span class="row-value" style="color:var(--orange);"></span></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="subpage-brands" class="subpage">
+    <div class="subpage-header">
+      <button class="back-btn" onclick="closeSubPage()" aria-label="Back"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M15 6l-6 6 6 6"/></svg></button>
+      <span class="subpage-title">Brands</span>
+    </div>
+    <div class="subpage-body">
+      <h2>Filter by brand</h2>
+      <p class="lead">Show only stations from your preferred brands.</p>
+      <div class="settings-group">
+        <div class="settings-row"><span class="row-label">Shell</span><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+        <div class="settings-row"><span class="row-label">BP</span><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+        <div class="settings-row"><span class="row-label">Caltex</span><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+        <div class="settings-row"><span class="row-label">7-Eleven</span><div class="toggle" onclick="this.classList.toggle('on')"></div></div>
+        <div class="settings-row"><span class="row-label">United</span><div class="toggle" onclick="this.classList.toggle('on')"></div></div>
+        <div class="settings-row"><span class="row-label">Ampol</span><div class="toggle" onclick="this.classList.toggle('on')"></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="subpage-servo-list" class="subpage">
+    <div class="subpage-header">
+      <button class="back-btn" onclick="closeSubPage()" aria-label="Back"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M15 6l-6 6 6 6"/></svg></button>
+      <span class="subpage-title">Nearby stations</span>
+    </div>
+    <div class="subpage-body">
+      <h2>Nearby stations</h2>
+      <p class="lead">Sorted by distance from you.</p>
+      <div class="settings-group">
+        <div class="settings-row" onclick="goPage('servo')"><span class="row-label">Shell — George St</span><span class="row-value">$1.71 ›</span></div>
+        <div class="settings-row" onclick="goPage('servo')"><span class="row-label">BP — Crown St</span><span class="row-value">$1.74 ›</span></div>
+        <div class="settings-row" onclick="goPage('servo')"><span class="row-label">Caltex — Cleveland St</span><span class="row-value">$1.78 ›</span></div>
+        <div class="settings-row" onclick="goPage('servo')"><span class="row-label">7-Eleven — Oxford St</span><span class="row-value">$1.69 ›</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="subpage-servo-search" class="subpage">
+    <div class="subpage-header">
+      <button class="back-btn" onclick="closeSubPage()" aria-label="Back"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M15 6l-6 6 6 6"/></svg></button>
+      <span class="subpage-title">Search stations</span>
+    </div>
+    <div class="subpage-body">
+      <h2>Search stations</h2>
+      <p class="lead">Find a station by name, suburb, or address.</p>
+      <div class="search-pill" style="background:#f7f7f8; box-shadow:none; border:1px solid #e5e7eb; padding:14px 18px;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9AA0AA" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        <span style="color:#9AA0AA;">Suburb, postcode or station…</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Help / FAQ -->
+  <section id="subpage-faq" class="subpage">
+    <div class="subpage-header">
+      <button class="back-btn" onclick="closeSubPage()" aria-label="Back"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M15 6l-6 6 6 6"/></svg></button>
+      <span class="subpage-title">Help & FAQ</span>
+    </div>
+    <div class="subpage-body">
+      <h2>Help &amp; FAQ</h2>
+      <p class="lead">Quick answers to common questions.</p>
+      <div class="menu-list" style="padding:0;">
+        <div class="menu-item" onclick="this.querySelector('p').textContent = this.querySelector('p').textContent === 'Tap to expand' ? 'You can renew your licence in 3 simple steps: open Wallet, select your licence, then tap Renew. You will need to pass a vision test.' : 'Tap to expand';">
+          <div class="menu-text-wrap"><h3>How do I renew my licence?</h3><p>Tap to expand</p></div>
+        </div>
+        <div class="menu-item" onclick="this.querySelector('p').textContent = this.querySelector('p').textContent === 'Tap to expand' ? 'On iPhone, open Settings → Face ID & Passcode and make sure Face ID is enabled. Then return to App settings → Face ID.' : 'Tap to expand';">
+          <div class="menu-text-wrap"><h3>Face ID isn't working</h3><p>Tap to expand</p></div>
+        </div>
+        <div class="menu-item" onclick="this.querySelector('p').textContent = this.querySelector('p').textContent === 'Tap to expand' ? 'Your date of birth cannot be changed in the app. Please visit a Service Victoria centre with photo ID to update it.' : 'Tap to expand';">
+          <div class="menu-text-wrap"><h3>How do I change my date of birth?</h3><p>Tap to expand</p></div>
+        </div>
+        <div class="menu-item" onclick="this.querySelector('p').textContent = this.querySelector('p').textContent === 'Tap to expand' ? 'Servo Saver shows live fuel prices at nearby stations. You can filter by brand and fuel type from the map screen.' : 'Tap to expand';">
+          <div class="menu-text-wrap"><h3>What is Servo Saver?</h3><p>Tap to expand</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Fines subpage -->
+  <section id="subpage-fines" class="subpage">
+    <div class="subpage-header">
+      <button class="back-btn" onclick="closeSubPage()" aria-label="Back"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M15 6l-6 6 6 6"/></svg></button>
+      <span class="subpage-title">Fines</span>
+    </div>
+    <div class="subpage-body">
+      <h2>Your fines</h2>
+      <p class="lead">You have no outstanding fines. 🎉</p>
+      <div class="settings-group">
+        <div class="settings-row"><span class="row-label">Outstanding fines</span><span class="row-value" style="color:#2AA65C; font-weight:700;">$0.00</span></div>
+        <div class="settings-row"><span class="row-label">Last payment</span><span class="row-value">—</span></div>
+      </div>
+      <button class="btn-primary" style="width:100%; margin-top:18px; padding:14px; border-radius:12px; font-weight:700;" onclick="window.open('https://www.fines.vic.gov.au','_blank')">View full fines history</button>
+    </div>
+  </section>
+
+  <!-- =========================================================
+       ALL SERVICES — dedicated subpages for each category
+       ========================================================= -->
+
+  <!-- Emergency services -->
+  <section id="subpage-emergency" class="subpage">
+    <div class="subpage-header">
+      <button class="back-btn" onclick="closeSubPage()" aria-label="Back"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M15 6l-6 6 6 6"/></svg></button>
+      <span class="subpage-title">Emergency services</span>
+    </div>
+    <div class="subpage-body">
+      <h2>Emergency services</h2>
+      <p class="lead">Quick access to emergency contacts and warnings.</p>
+      <div class="contact-card" onclick="window.location.href='tel:000'">
+        <div class="contact-icon" style="background:#E85C43;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.4.6 3.7.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1-9.4 0-17-7.6-17-17 0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.7.1.4 0 .7-.2 1l-2.4 2.1z"/></svg>
+        </div>
+        <div class="contact-text"><h4>Call Triple Zero (000)</h4><p>Police, fire, ambulance — life-threatening</p></div>
+      </div>
+      <div class="contact-card" onclick="window.location.href='tel:112'">
+        <div class="contact-icon" style="background:#1F3350;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M12 2C8 2 5 5 5 9c0 5 7 13 7 13s7-8 7-13c0-4-3-7-7-7zm0 9.5c-1.4 0-2.5-1.1-2.5-2.5s1.1-2.5 2.5-2.5 2.5 1.1 2.5 2.5-1.1 2.5-2.5 2.5z"/></svg>
+        </div>
+        <div class="contact-text"><h4>Call 112 from mobile</h4><p>Works even without SIM</p></div>
+      </div>
+      <div class="contact-card" onclick="window.open('https://www.vic.gov.au/january-2026-victorian-bushfires','_blank')">
+        <div class="contact-icon" style="background:#E8720C;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M13.5.67s.74 2.65.74 4.8c0 2.06-1.35 3.73-3.41 3.73-2.07 0-3.63-1.67-3.63-3.73l.03-.36C5.21 7.51 4 10.62 4 14c0 4.42 3.58 8 8 8s8-3.58 8-8C20 8.61 17.41 3.8 13.5.67zM11.71 19c-1.78 0-3.22-1.4-3.22-3.14 0-1.62 1.05-2.76 2.81-3.12 1.77-.36 3.6-1.21 4.62-2.58.39 1.29.59 2.65.59 4.04 0 2.65-2.15 4.8-4.8 4.8z"/></svg>
+        </div>
+        <div class="contact-text"><h4>Active warnings</h4><p>Bushfire, flood and storm alerts</p></div>
+      </div>
+      <div class="contact-card" onclick="window.open('https://www.ses.vic.gov.au','_blank')">
+        <div class="contact-icon" style="background:#2AA65C;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M12 2L2 22h20L12 2zm0 4l7 14H5l7-14zm-1 6h2v4h-2v-4zm0-3h2v2h-2V9z"/></svg>
+        </div>
+        <div class="contact-text"><h4>SES — Storm &amp; flood</h4><p>132 500 — non-life-threatening help</p></div>
+      </div>
+      <div class="contact-card" onclick="window.location.href='tel:1800551800'">
+        <div class="contact-icon" style="background:#6B4EE0;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-7 12h-2v-2h2v2zm0-4h-2V6h2v4z"/></svg>
+        </div>
+        <div class="contact-text"><h4>Lifeline</h4><p>13 11 14 — 24/7 crisis support</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Transportation and Driving -->
+  <section id="subpage-transport" class="subpage">
+    <div class="subpage-header">
+      <button class="back-btn" onclick="closeSubPage()" aria-label="Back"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M15 6l-6 6 6 6"/></svg></button>
+      <span class="subpage-title">Transport &amp; driving</span>
+    </div>
+    <div class="subpage-body">
+      <h2>Transport &amp; driving</h2>
+      <p class="lead">Licences, registration, public transport and more.</p>
+      <div class="menu-list" style="padding:0;">
+        <div class="menu-item" onclick="window.location.href='license.html'">
+          <div class="menu-text-wrap"><h3>Drivers licence</h3><p>View, renew and update your digital licence</p></div>
+          <svg class="arrow-icon" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </div>
+        <div class="menu-item" onclick="window.open('https://www.vicroads.vic.gov.au/registration/renew-registration','_blank')">
+          <div class="menu-text-wrap"><h3>Vehicle registration</h3><p>Renew rego, check status, transfer vehicle</p></div>
+          <svg class="arrow-icon" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </div>
+        <div class="menu-item" onclick="window.open('https://service.vic.gov.au/services/registration-rebate?channel=mobileApplication&section=tile','_blank')">
+          <div class="menu-text-wrap"><h3>Registration rebate</h3><p>Claim your $100 rego rebate</p></div>
+          <svg class="arrow-icon" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </div>
+        <div class="menu-item" onclick="window.open('https://www.ptv.vic.gov.au','_blank')">
+          <div class="menu-text-wrap"><h3>Public transport</h3><p>Timetables, myki, journey planner</p></div>
+          <svg class="arrow-icon" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </div>
+        <div class="menu-item" onclick="window.open('https://www.vicroads.vic.gov.au/licences/renew-update-or-change','_blank')">
+          <div class="menu-text-wrap"><h3>Learner permit</h3><p>Apply for or upgrade your L plates</p></div>
+          <svg class="arrow-icon" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </div>
+        <div class="menu-item" onclick="goPage('servo')">
+          <div class="menu-text-wrap"><h3>Servo Saver</h3><p>Live fuel prices near you</p></div>
+          <svg class="arrow-icon" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Personal -->
+  <section id="subpage-personal-services" class="subpage">
+    <div class="subpage-header">
+      <button class="back-btn" onclick="closeSubPage()" aria-label="Back"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M15 6l-6 6 6 6"/></svg></button>
+      <span class="subpage-title">Personal</span>
+    </div>
+    <div class="subpage-body">
+      <h2>Personal services</h2>
+      <p class="lead">Identity, life events and everyday admin.</p>
+      <div class="menu-list" style="padding:0;">
+        <div class="menu-item" onclick="window.open('https://service.vic.gov.au/digital-birth-certificate?channel=mobileApplication&section=tile','_blank')">
+          <div class="menu-text-wrap"><h3>Digital birth certificate</h3><p>Order or share your digital certificate</p></div>
+          <svg class="arrow-icon" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </div>
+        <div class="menu-item" onclick="window.open('https://www.bdm.vic.gov.au','_blank')">
+          <div class="menu-text-wrap"><h3>Births, deaths &amp; marriages</h3><p>Certificates, name changes, registers</p></div>
+          <svg class="arrow-icon" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </div>
+        <div class="menu-item" onclick="window.open('https://www.passports.gov.au','_blank')">
+          <div class="menu-text-wrap"><h3>Australian passport</h3><p>Apply, renew and check your passport</p></div>
+          <svg class="arrow-icon" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </div>
+        <div class="menu-item" onclick="window.open('https://www.servicesaustralia.gov.au/medicare-card','_blank')">
+          <div class="menu-text-wrap"><h3>Medicare card</h3><p>View your digital Medicare card</p></div>
+          <svg class="arrow-icon" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </div>
+        <div class="menu-item" onclick="window.open('https://www.australia.gov.au/change-address','_blank')">
+          <div class="menu-text-wrap"><h3>Change of address</h3><p>Update your address across services</p></div>
+          <svg class="arrow-icon" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Work and volunteering -->
+  <section id="subpage-work" class="subpage">
+    <div class="subpage-header">
+      <button class="back-btn" onclick="closeSubPage()" aria-label="Back"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M15 6l-6 6 6 6"/></svg></button>
+      <span class="subpage-title">Work &amp; volunteering</span>
+    </div>
+    <div class="subpage-body">
+      <h2>Work &amp; volunteering</h2>
+      <p class="lead">Jobs, training and volunteering opportunities.</p>
+      <div class="menu-list" style="padding:0;">
+        <div class="menu-item" onclick="window.open('https://www.seek.com.au','_blank')">
+          <div class="menu-text-wrap"><h3>Find a job</h3><p>Search Victorian and national job listings</p></div>
+          <svg class="arrow-icon" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </div>
+        <div class="menu-item" onclick="window.open('https://www.servicesaustralia.gov.au/job-seekers','_blank')">
+          <div class="menu-text-wrap"><h3>JobSeeker payment</h3><p>Apply for income support while job hunting</p></div>
+          <svg class="arrow-icon" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </div>
+        <div class="menu-item" onclick="window.open('https://www.vic.gov.au/volunteer','_blank')">
+          <div class="menu-text-wrap"><h3>Volunteering</h3><p>Find a cause and apply to volunteer</p></div>
+          <svg class="arrow-icon" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </div>
+        <div class="menu-item" onclick="window.open('https://www.skills.vic.gov.au','_blank')">
+          <div class="menu-text-wrap"><h3>Skills &amp; training</h3><p>Free TAFE, certificates, micro-credentials</p></div>
+          <svg class="arrow-icon" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </div>
+        <div class="menu-item" onclick="window.open('https://www.fairwork.gov.au','_blank')">
+          <div class="menu-text-wrap"><h3>Workplace rights</h3><p>Wages, leave, disputes and conditions</p></div>
+          <svg class="arrow-icon" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Outdoor and recreation -->
+  <section id="subpage-outdoor" class="subpage">
+    <div class="subpage-header">
+      <button class="back-btn" onclick="closeSubPage()" aria-label="Back"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M15 6l-6 6 6 6"/></svg></button>
+      <span class="subpage-title">Outdoor &amp; recreation</span>
+    </div>
+    <div class="subpage-body">
+      <h2>Outdoor &amp; recreation</h2>
+      <p class="lead">Parks, camping, fishing and getting active.</p>
+      <div class="menu-list" style="padding:0;">
+        <div class="menu-item" onclick="window.open('https://www.parks.vic.gov.au','_blank')">
+          <div class="menu-text-wrap"><h3>Parks Victoria</h3><p>Find a park, plan a visit, check conditions</p></div>
+          <svg class="arrow-icon" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </div>
+        <div class="menu-item" onclick="window.open('https://www.parks.vic.gov.au/visit/park-closures-and-alerts','_blank')">
+          <div class="menu-text-wrap"><h3>Park closures &amp; alerts</h3><p>Current fire, flood and trail closures</p></div>
+          <svg class="arrow-icon" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </div>
+        <div class="menu-item" onclick="window.open('https://www.vic.gov.au/fishing-licence','_blank')">
+          <div class="menu-text-wrap"><h3>Fishing licence</h3><p>Recreational fishing in Victoria</p></div>
+          <svg class="arrow-icon" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </div>
+        <div class="menu-item" onclick="window.open('https://www.parks.vic.gov.au/visit/camping','_blank')">
+          <div class="menu-text-wrap"><h3>Camping &amp; cabins</h3><p>Book a site, check availability</p></div>
+          <svg class="arrow-icon" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </div>
+        <div class="menu-item" onclick="window.open('https://www.sport.vic.gov.au','_blank')">
+          <div class="menu-text-wrap"><h3>Sport &amp; active living</h3><p>Find clubs, grants and programs</p></div>
+          <svg class="arrow-icon" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Housing and property -->
+  <section id="subpage-housing" class="subpage">
+    <div class="subpage-header">
+      <button class="back-btn" onclick="closeSubPage()" aria-label="Back"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M15 6l-6 6 6 6"/></svg></button>
+      <span class="subpage-title">Housing &amp; property</span>
+    </div>
+    <div class="subpage-body">
+      <h2>Housing &amp; property</h2>
+      <p class="lead">Renting, buying, rates and assistance.</p>
+      <div class="menu-list" style="padding:0;">
+        <div class="menu-item" onclick="window.open('https://www.housing.vic.gov.au','_blank')">
+          <div class="menu-text-wrap"><h3>Public housing</h3><p>Apply for or update a public housing application</p></div>
+          <svg class="arrow-icon" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </div>
+        <div class="menu-item" onclick="window.open('https://www.consumer.vic.gov.au/housing/renting','_blank')">
+          <div class="menu-text-wrap"><h3>Renting</h3><p>Rights, bonds, repairs and disputes</p></div>
+          <svg class="arrow-icon" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </div>
+        <div class="menu-item" onclick="window.open('https://www.sro.vic.gov.au/land-tax','_blank')">
+          <div class="menu-text-wrap"><h3>Land tax</h3><p>Check, pay and manage your land tax</p></div>
+          <svg class="arrow-icon" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </div>
+        <div class="menu-item" onclick="window.open('https://www.energy.vic.gov.au/victorian-energy-upgrades/homes','_blank')">
+          <div class="menu-text-wrap"><h3>Energy upgrades</h3><p>Save on energy bills for your home</p></div>
+          <svg class="arrow-icon" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </div>
+        <div class="menu-item" onclick="window.open('https://www.planning.vic.gov.au','_blank')">
+          <div class="menu-text-wrap"><h3>Planning permits</h3><p>Apply, check status and lodge objections</p></div>
+          <svg class="arrow-icon" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Crime and the law -->
+  <section id="subpage-law" class="subpage">
+    <div class="subpage-header">
+      <button class="back-btn" onclick="closeSubPage()" aria-label="Back"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M15 6l-6 6 6 6"/></svg></button>
+      <span class="subpage-title">Crime &amp; the law</span>
+    </div>
+    <div class="subpage-body">
+      <h2>Crime &amp; the law</h2>
+      <p class="lead">Reporting crime, fines, courts and legal help.</p>
+      <div class="menu-list" style="padding:0;">
+        <div class="menu-item" onclick="window.open('https://www.police.vic.gov.au','_blank')">
+          <div class="menu-text-wrap"><h3>Victoria Police</h3><p>Report a crime, station locations</p></div>
+          <svg class="arrow-icon" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </div>
+        <div class="menu-item" onclick="openSubPage('subpage-fines')">
+          <div class="menu-text-wrap"><h3>Pay a fine</h3><p>Check and pay infringements online</p></div>
+          <svg class="arrow-icon" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </div>
+        <div class="menu-item" onclick="window.open('https://www.magistratescourt.vic.gov.au','_blank')">
+          <div class="menu-text-wrap"><h3>Magistrates' Court</h3><p>Court dates, locations, online services</p></div>
+          <svg class="arrow-icon" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </div>
+        <div class="menu-item" onclick="window.open('https://www.legalaid.vic.gov.au','_blank')">
+          <div class="menu-text-wrap"><h3>Legal Aid</h3><p>Free legal help and advice</p></div>
+          <svg class="arrow-icon" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </div>
+        <div class="menu-item" onclick="window.open('https://www.fines.vic.gov.au','_blank')">
+          <div class="menu-text-wrap"><h3>Dispute a fine</h3><p>Request a review or go to court</p></div>
+          <svg class="arrow-icon" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Family and child -->
+  <section id="subpage-family" class="subpage">
+    <div class="subpage-header">
+      <button class="back-btn" onclick="closeSubPage()" aria-label="Back"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M15 6l-6 6 6 6"/></svg></button>
+      <span class="subpage-title">Family &amp; child</span>
+    </div>
+    <div class="subpage-body">
+      <h2>Family &amp; child</h2>
+      <p class="lead">Parenting, childcare, payments and family support.</p>
+      <div class="menu-list" style="padding:0;">
+        <div class="menu-item" onclick="window.open('https://service.vic.gov.au/portals/parent-portal/?channel=mobileApplication&section=tile','_blank')">
+          <div class="menu-text-wrap"><h3>Parent portal</h3><p>Access parenting resources and payments</p></div>
+          <svg class="arrow-icon" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </div>
+        <div class="menu-item" onclick="window.open('https://www.servicesaustralia.gov.au/family-tax-benefit','_blank')">
+          <div class="menu-text-wrap"><h3>Family Tax Benefit</h3><p>Help with the cost of raising children</p></div>
+          <svg class="arrow-icon" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </div>
+        <div class="menu-item" onclick="window.open('https://www.servicesaustralia.gov.au/child-care-subsidy','_blank')">
+          <div class="menu-text-wrap"><h3>Childcare subsidy</h3><p>Reduce the cost of approved childcare</p></div>
+          <svg class="arrow-icon" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </div>
+        <div class="menu-item" onclick="window.open('https://www.education.vic.gov.au/parents/find-a-kindergarten','_blank')">
+          <div class="menu-text-wrap"><h3>Kindergarten</h3><p>Free kinder in 2026, enrol your child</p></div>
+          <svg class="arrow-icon" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </div>
+        <div class="menu-item" onclick="window.open('https://www.servicesaustralia.gov.au/parenting-payment','_blank')">
+          <div class="menu-text-wrap"><h3>Parenting payment</h3><p>Income support for parents and carers</p></div>
+          <svg class="arrow-icon" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Health and care -->
+  <section id="subpage-health" class="subpage">
+    <div class="subpage-header">
+      <button class="back-btn" onclick="closeSubPage()" aria-label="Back"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M15 6l-6 6 6 6"/></svg></button>
+      <span class="subpage-title">Health &amp; care</span>
+    </div>
+    <div class="subpage-body">
+      <h2>Health &amp; care</h2>
+      <p class="lead">Hospitals, Medicare, mental health and aged care.</p>
+      <div class="menu-list" style="padding:0;">
+        <div class="menu-item" onclick="window.open('https://www.servicesaustralia.gov.au/medicare','_blank')">
+          <div class="menu-text-wrap"><h3>Medicare</h3><p>Claims, card and safety net</p></div>
+          <svg class="arrow-icon" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </div>
+        <div class="menu-item" onclick="window.open('https://www.betterhealth.vic.gov.au','_blank')">
+          <div class="menu-text-wrap"><h3>Better Health Channel</h3><p>Trusted health information</p></div>
+          <svg class="arrow-icon" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </div>
+        <div class="menu-item" onclick="window.open('https://www.health.vic.gov.au/mental-health-services','_blank')">
+          <div class="menu-text-wrap"><h3>Mental health</h3><p>Find services and crisis support</p></div>
+          <svg class="arrow-icon" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </div>
+        <div class="menu-item" onclick="window.open('https://www.myagedcare.gov.au','_blank')">
+          <div class="menu-text-wrap"><h3>My Aged Care</h3><p>Apply for aged care services</p></div>
+          <svg class="arrow-icon" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </div>
+        <div class="menu-item" onclick="window.location.href='tel:1800551800'">
+          <div class="menu-text-wrap"><h3>Crisis support</h3><p>13 11 14 — Lifeline, 24/7</p></div>
+          <svg class="arrow-icon" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Education and training -->
+  <section id="subpage-education" class="subpage">
+    <div class="subpage-header">
+      <button class="back-btn" onclick="closeSubPage()" aria-label="Back"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M15 6l-6 6 6 6"/></svg></button>
+      <span class="subpage-title">Education &amp; training</span>
+    </div>
+    <div class="subpage-body">
+      <h2>Education &amp; training</h2>
+      <p class="lead">School, TAFE, university and scholarships.</p>
+      <div class="menu-list" style="padding:0;">
+        <div class="menu-item" onclick="window.open('https://www.education.vic.gov.au','_blank')">
+          <div class="menu-text-wrap"><h3>Department of Education</h3><p>School enrolments, term dates</p></div>
+          <svg class="arrow-icon" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </div>
+        <div class="menu-item" onclick="window.open('https://www.education.vic.gov.au/school/teachers/learning-teaching/Pages/apply-for-school','_blank')">
+          <div class="menu-text-wrap"><h3>Find a school</h3><p>Search Victorian government schools</p></div>
+          <svg class="arrow-icon" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </div>
+        <div class="menu-item" onclick="window.open('https://www.tafevic.edu.au','_blank')">
+          <div class="menu-text-wrap"><h3>TAFE &amp; vocational</h3><p>Courses, free TAFE programs</p></div>
+          <svg class="arrow-icon" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </div>
+        <div class="menu-item" onclick="window.open('https://www.studyassist.gov.au','_blank')">
+          <div class="menu-text-wrap"><h3>University &amp; HECS</h3><p>Help with student loans and fees</p></div>
+          <svg class="arrow-icon" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </div>
+        <div class="menu-item" onclick="window.open('https://www.servicesaustralia.gov.au/abstudy','_blank')">
+          <div class="menu-text-wrap"><h3>ABSTUDY</h3><p>Support for Aboriginal and Torres Strait Islander students</p></div>
+          <svg class="arrow-icon" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Business -->
+  <section id="subpage-business" class="subpage">
+    <div class="subpage-header">
+      <button class="back-btn" onclick="closeSubPage()" aria-label="Back"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M15 6l-6 6 6 6"/></svg></button>
+      <span class="subpage-title">Business</span>
+    </div>
+    <div class="subpage-body">
+      <h2>Business</h2>
+      <p class="lead">Start, run and grow your Victorian business.</p>
+      <div class="menu-list" style="padding:0;">
+        <div class="menu-item" onclick="window.open('https://www.business.vic.gov.au','_blank')">
+          <div class="menu-text-wrap"><h3>Business Victoria</h3><p>Start, run and grow your business</p></div>
+          <svg class="arrow-icon" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </div>
+        <div class="menu-item" onclick="window.open('https://www.abr.gov.au','_blank')">
+          <div class="menu-text-wrap"><h3>ABN &amp; business names</h3><p>Apply for an ABN or register a name</p></div>
+          <svg class="arrow-icon" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </div>
+        <div class="menu-item" onclick="window.open('https://www.ato.gov.au/business','_blank')">
+          <div class="menu-text-wrap"><h3>Tax &amp; BAS</h3><p>Lodge BAS, GST and income tax</p></div>
+          <svg class="arrow-icon" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </div>
+        <div class="menu-item" onclick="window.open('https://www.consumer.vic.gov.au/businesses','_blank')">
+          <div class="menu-text-wrap"><h3>Licences &amp; permits</h3><p>Find the licences your business needs</p></div>
+          <svg class="arrow-icon" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </div>
+        <div class="menu-item" onclick="window.open('https://www.business.vic.gov.au/grants-and-programs','_blank')">
+          <div class="menu-text-wrap"><h3>Grants &amp; programs</h3><p>Funding and support for Victorian businesses</p></div>
+          <svg class="arrow-icon" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<nav class="bottom-nav">
+  <button class="nav-btn active" data-page="home" onclick="goPage('home')">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 11l8-7 8 7"/><path d="M6 10v9a1 1 0 0 0 1 1h4v-6h2v6h4a1 1 0 0 0 1-1v-9"/></svg>
+    Home
+  </button>
+  <button class="nav-btn" data-page="wallet" onclick="goPage('wallet')">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/><path d="M7 15h4"/></svg>
+    Wallet
+  </button>
+  <button class="nav-btn" data-page="scan" onclick="goPage('scan')">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="6" height="6" rx="1"/><rect x="15" y="3" width="6" height="6" rx="1"/><rect x="3" y="15" width="6" height="6" rx="1"/><path d="M15 15h6v6h-6z"/></svg>
+    Scan QR
+  </button>
+  <button class="nav-btn" data-page="servo" onclick="goPage('servo')">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 21V6a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v15"/><path d="M4 21h12"/><path d="M15 9h2a2 2 0 0 1 2 2v4a1.5 1.5 0 0 0 3 0V9l-2-3"/></svg>
+    Servo Saver
+  </button>
+  <button class="nav-btn" data-page="account" onclick="goPage('account')">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 20c1.5-4 5-6 8-6s6.5 2 8 6"/></svg>
+    Account
+  </button>
+</nav>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.js"></script>
+<script>
+function goPage(name){
+  // Close any open subpage first
+  document.querySelectorAll('.subpage').forEach(s=>s.classList.remove('active'));
+
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+
+  document.querySelectorAll('.nav-btn').forEach(btn=>{
+    btn.classList.toggle('active', btn.dataset.page === name);
+  });
+
+  if(name==='scan') startScanner(); else stopScanner();
+  if(name==='servo') setTimeout(()=>{
+    if(servoMap) servoMap.invalidateSize();
+    initMap();
+  },80);
+}
+
+function openSubPage(id){
+  document.getElementById(id).classList.add('active');
+  // Scroll to top of new subpage
+  document.getElementById(id).scrollTop = 0;
+}
+
+function closeSubPage(){
+  document.querySelectorAll('.subpage').forEach(s=>s.classList.remove('active'));
+}
+
+function toggleRow(row){
+  const toggle = row.querySelector('.toggle');
+  if(toggle){ toggle.classList.toggle('on'); }
+}
+
+/* HOME */
+const servicesList = [
+  "Emergency services","Transportation and Driving","Personal","Digital wallet","Work and volunteering",
+  "Outdoor and recreation","Housing and property","Crime and the law",
+  "Family and child","Health and care","Education and training","Business"
+];
+
+// Per-service target destinations
+const serviceLinks = {
+  "Emergency services": "subpage-emergency",
+  "Transportation and Driving": "subpage-transport",
+  "Personal": "subpage-personal-services",
+  "Digital wallet": "subpage-wallet-history",
+  "Work and volunteering": "subpage-work",
+  "Outdoor and recreation": "subpage-outdoor",
+  "Housing and property": "subpage-housing",
+  "Crime and the law": "subpage-law",
+  "Family and child": "subpage-family",
+  "Health and care": "subpage-health",
+  "Education and training": "subpage-education",
+  "Business": "subpage-business"
+};
+
+const carouselLinks = {
+  'image1':'https://service.vic.gov.au/services/registration-rebate?channel=mobileApplication&section=tile',
+  'image2':'https://service.vic.gov.au/portals/parent-portal/?channel=mobileApplication&section=tile',
+  'image3':'https://www.energy.vic.gov.au/victorian-energy-upgrades/homes',
+  'image4':'https://service.vic.gov.au/digital-birth-certificate?channel=mobileApplication&section=tile',
+  'image5':'https://www.vic.gov.au/january-2026-victorian-bushfires',
+  'image6':'#',
+  'image7':'https://service.vic.gov.au/portals/parent-portal/?channel=mobileApplication',
+  'image8':'license.html',
+  'image9':'#'
+};
+
+function buildImgCard(src, label){
+  const link = carouselLinks[label] || '#';
+  const a = document.createElement('a');
+  a.className = 'carousel-card';
+  a.href = link;
+  if(/^https?:\/\//i.test(link)) a.target = '_blank';
+  if(link === '#') a.onclick = (e)=>{ e.preventDefault(); openSubPage('subpage-most-viewed'); };
+  const img = document.createElement('img');
+  img.src = src;
+  img.alt = label;
+  img.loading = "lazy";
+  img.onerror = function(){
+    this.remove();
+    const fb = document.createElement('div');
+    fb.className = 'fallback-label';
+    fb.textContent = label;
+    a.appendChild(fb);
+  };
+  a.appendChild(img);
+  return a;
+}
+
+const viewedEl = document.getElementById('carousel-viewed');
+const suggestedEl = document.getElementById('carousel-suggested');
+for(let i=1;i<=6;i++){ viewedEl.appendChild(buildImgCard('image'+i+'.jpg', 'image'+i)); }
+for(let i=7;i<=9;i++){ suggestedEl.appendChild(buildImgCard('image'+i+'.jpg', 'image'+i)); }
+
+const listEl = document.getElementById('services-list');
+servicesList.forEach(label=>{
+  const row = document.createElement('div');
+  row.className = 'list-row';
+  row.innerHTML = '<span>'+label+'</span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>';
+  row.onclick = ()=>{
+    const target = serviceLinks[label];
+    if(target && document.getElementById(target)){
+      openSubPage(target);
+    } else {
+      alert(label + ' — coming soon');
+    }
+  };
+  listEl.appendChild(row);
+});
+
+/* WALLET */
+const walletCards = [
+  {name:"Victorian Drivers Licence", type:"VicRoads • Class C", number:"•••• •••• 4471", from:"#173F7A", to:"#0B2650", link:"license.html"},
+  {name:"Medicare Card", type:"Australian Government", number:"•••• •••• 8823 1", from:"#1E8E6E", to:"#0F5C46", link:null},
+  {name:"Roadside Assist", type:"Membership", number:"•••• 4471", from:"#2F6FE0", to:"#1F3FA0", link:null},
+  {name:"Fuel Saver", type:"Rewards card", number:"•••• 8823", from:"#E8720C", to:"#B94B02", link:null},
+  {name:"Home & Contents", type:"Insurance", number:"•••• 1195", from:"#2AA65C", to:"#187A40", link:null},
+  {name:"Everyday Card", type:"Membership", number:"•••• 6602", from:"#6B4EE0", to:"#4127A8", link:null}
+];
+
+const stackWrap = document.getElementById('wallet-stack');
+const walletHint = document.getElementById('wallet-hint');
+let expandedIndex = null;
+
+function renderWallet(){
+  stackWrap.innerHTML = '';
+  walletCards.forEach((c, i)=>{
+    const el = document.createElement('div');
+    el.className = 'wallet-card';
+    el.style.background = 'linear-gradient(135deg,'+c.from+','+c.to+')';
+    el.style.zIndex = i;
+    el.innerHTML =
+      '<div class="card-top"><div><div class="card-name">'+c.name+'</div><div class="card-type">'+c.type+'</div></div>' +
+      '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" opacity="0.85"><rect x="2" y="6" width="20" height="12" rx="2"/></svg></div>' +
+      '<div class="card-number">'+c.number+'</div>' +
+      '<div class="barcode" style="display:'+(expandedIndex===i?'block':'none')+'"></div>' +
+      '<div class="card-bottom"><span>Tap to '+(expandedIndex===i?'close':'view')+'</span><span>Exp 09/28</span></div>';
+    el.onclick = ()=>{
+      if(c.link) {
+        window.location.href = c.link;
+      } else {
+        expandedIndex = (expandedIndex===i) ? null : i;
+        renderWallet();
+      }
+    };
+    positionCard(el, i);
+    stackWrap.appendChild(el);
+  });
+  walletHint.textContent = expandedIndex===null ? 'Tap a card to view it' : 'Tap the card again to put it back';
+}
+
+function positionCard(el, i){
+  if(expandedIndex===null){
+    el.style.transform = 'translateY('+(i*46)+'px) scale(1)';
+    el.classList.remove('expanded');
+  } else if(i===expandedIndex){
+    el.style.transform = 'translateY('+(walletCards.length*46 - 46)+'px) scale(1.02)';
+    el.classList.add('expanded');
+  } else if(i < expandedIndex){
+    el.style.transform = 'translateY('+(i*46)+'px) scale(1)';
+    el.classList.remove('expanded');
+  } else {
+    el.style.transform = 'translateY('+((walletCards.length)*46 + 40)+'px) scale(0.96)';
+    el.classList.remove('expanded');
+  }
+}
+renderWallet();
+
+/* SCAN */
+let scanStream = null, scanRAF = null, scanPaused = false, torchOn = false, torchTrack = null;
+const video = document.getElementById('scan-video');
+const canvas = document.getElementById('scan-canvas');
+const ctx = canvas.getContext('2d', { willReadFrequently: true });
+const scanSheet = document.getElementById('scan-sheet');
+const scanResult = document.getElementById('scan-result');
+let lastScanValue = '';
+
+async function startScanner(){
+  scanPaused = false;
+  scanResult.classList.remove('show');
+  try{
+    scanStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' }, width:{ideal:1280}, height:{ideal:720} }, audio:false
+    });
+    video.srcObject = scanStream;
+    await video.play();
+    scanSheet.textContent = 'Point your camera at a QR code';
+    const track = scanStream.getVideoTracks()[0];
+    torchTrack = track;
+    scanTick();
+  }catch(err){
+    scanSheet.textContent = 'Camera unavailable: ' + err.message + '. Check your browser/site camera permission.';
+  }
+}
+
+function stopScanner(){
+  if(scanRAF) cancelAnimationFrame(scanRAF);
+  if(scanStream){ scanStream.getTracks().forEach(t=>t.stop()); scanStream=null; }
+  torchOn = false;
+  torchTrack = null;
+  document.getElementById('torch-btn').classList.remove('on');
+}
+
+function scanTick(){
+  if(video.readyState === video.HAVE_ENOUGH_DATA && !scanPaused && typeof jsQR === 'function'){
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const imgData = ctx.getImageData(0,0,canvas.width,canvas.height);
+    const code = jsQR(imgData.data, imgData.width, imgData.height);
+    if(code && code.data){
+      lastScanValue = code.data;
+      document.getElementById('scan-result-text').textContent = code.data;
+      scanResult.classList.add('show');
+      scanPaused = true;
+      if(navigator.vibrate) navigator.vibrate([80,30,80]);
+    }
+  }
+  scanRAF = requestAnimationFrame(scanTick);
+}
+
+function resumeScan(){
+  scanResult.classList.remove('show');
+  scanPaused = false;
+}
+
+function openScanResult(){
+  if(/^https?:\/\//i.test(lastScanValue)){
+    window.open(lastScanValue, '_blank');
+  } else {
+    navigator.clipboard.writeText(lastScanValue).then(()=>alert('Copied to clipboard:\n'+lastScanValue));
+  }
+}
+
+async function toggleTorch(){
+  if(!torchTrack || !torchTrack.getCapabilities().torch) {
+    alert('Flashlight not supported on this device');
+    return;
+  }
+  try{
+    torchOn = !torchOn;
+    await torchTrack.applyConstraints({ advanced:[{ torch: torchOn }] });
+    document.getElementById('torch-btn').classList.toggle('on', torchOn);
+  }catch(e){
+    alert('Failed to toggle flashlight');
+    torchOn = false;
+  }
+}
+
+/* SERVO */
+let servoMap = null, userMarker = null, watchId = null, fuelMarkers = [];
+
+function initMap(){
+  if(servoMap){
+    servoMap.invalidateSize();
+    return;
+  }
+  servoMap = L.map('servo-map', { zoomControl:false, attributionControl:false }).setView([-33.797,151.286], 14);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:19 }).addTo(servoMap);
+  L.control.attribution({position:'bottomleft'}).addAttribution('&copy; OpenStreetMap contributors').addTo(servoMap);
+  locateMe();
+}
+
+function clearFuelMarkers(){
+  fuelMarkers.forEach(m=>servoMap.removeLayer(m));
+  fuelMarkers = [];
+}
+
+function dropFuelMarkers(center){
+  clearFuelMarkers();
+  const prices = ['U91','U95','U98','Diesel'];
+  for(let i=0;i<4;i++){
+    const lat = center[0] + (Math.random()-0.5)*0.02;
+    const lng = center[1] + (Math.random()-0.5)*0.02;
+    const icon = L.divIcon({
+      className:'', html:'<div class="fuel-marker">'+prices[i%prices.length]+' $1.'+(70+i*3)+'</div>',
+      iconSize:null
+    });
+    const marker = L.marker([lat,lng], {icon}).addTo(servoMap);
+    fuelMarkers.push(marker);
+  }
+}
+
+function locateMe(){
+  if(!navigator.geolocation){ dropFuelMarkers([-33.797,151.286]); return; }
+  navigator.geolocation.getCurrentPosition(pos=>{
+    const c = [pos.coords.latitude, pos.coords.longitude];
+    servoMap.setView(c, 15);
+    if(userMarker) servoMap.removeLayer(userMarker);
+    const icon = L.divIcon({ className:'', html:'<div class="user-dot"></div>', iconSize:[16,16] });
+    userMarker = L.marker(c, {icon}).addTo(servoMap);
+    dropFuelMarkers(c);
+    if(watchId) navigator.geolocation.clearWatch(watchId);
+    watchId = navigator.geolocation.watchPosition(p=>{
+      const nc = [p.coords.latitude, p.coords.longitude];
+      if(userMarker) userMarker.setLatLng(nc);
+    }, ()=>{}, { enableHighAccuracy:true });
+  }, ()=>{
+    dropFuelMarkers([-33.797,151.286]);
+  }, { enableHighAccuracy:true, timeout:8000 });
+}
+
+document.addEventListener('DOMContentLoaded', ()=>goPage('home'));
+</script>
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch(console.error);
+    });
+  }
+</script>
+</body>
+</html>
